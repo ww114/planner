@@ -1,0 +1,1983 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>家教行程规划助手</title>
+<style>
+:root{--accent:#4361ee;--accent2:#5b74f5;--bg:#f2f4f9;--card:#fff;--text:#1b1f2a;--muted:#68708a;--border:#e4e8f2;--red:#e5484d;--orange:#f5a623;--yellow:#e0a100;--green:#30a46c;}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
+.wrap{max-width:940px;margin:0 auto;padding:16px 16px 72px}
+header{padding:8px 2px 2px}
+h1{font-size:22px;margin:6px 0 2px}
+.sub{color:var(--muted);font-size:13px;margin:0 0 4px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;margin:14px 0;box-shadow:0 1px 3px rgba(20,30,60,.05)}
+.sec-title{font-size:16px;font-weight:700;margin:0 0 12px;display:flex;gap:8px;align-items:center}
+.badge-step{background:var(--accent);color:#fff;border-radius:8px;min-width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;flex:none}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px 14px}
+@media(max-width:680px){.grid2,.grid3{grid-template-columns:1fr}}
+.field label{display:block;font-size:13px;color:var(--muted);margin-bottom:3px}
+input,select,textarea{width:100%;border:1px solid #d5dbea;border-radius:8px;padding:8px 10px;font-size:14px;font-family:inherit;background:#fff;color:var(--text)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(67,97,238,.12)}
+textarea{resize:vertical;min-height:64px}
+.hint{font-size:12px;color:var(--muted);margin-top:6px}
+.hint a{color:var(--accent)}
+.btn{display:inline-block;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:10px 18px;font-size:14px;cursor:pointer;font-family:inherit}
+.btn:hover{background:var(--accent2)}
+.btn-ghost{background:#fff;color:var(--accent);border:1px solid var(--accent)}
+.btn-ghost:hover{background:#eef1ff}
+.btn-sm{padding:5px 10px;font-size:13px;border-radius:8px}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.progress{color:var(--accent);font-size:13px;margin-top:8px}
+.hidden{display:none}
+/* 家教单卡片 */
+.job-card{border:1px solid var(--border);border-left-width:4px;border-radius:12px;padding:14px;margin:12px 0;background:#fbfcff}
+.job-head{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+.job-head b{flex:none}
+.job-head input{width:auto;flex:1;min-width:140px}
+.job-dot{width:12px;height:12px;border-radius:50%;flex:none}
+.job-fields{margin-top:10px;border-top:1px dashed var(--border);padding-top:10px}
+.field-row{display:flex;gap:10px;align-items:center;margin:8px 0;flex-wrap:wrap}
+.field-row>label{width:52px;flex:none;font-size:13px;color:var(--muted)}
+.field-row input[type=time]{width:120px}
+.field-row .amount{width:110px}
+.field-row select{width:110px}
+.field-row .addr{flex:1;min-width:200px}
+.field-row .note{flex:1;min-width:160px}
+.day-picks{display:flex;gap:6px;flex-wrap:wrap}
+.day-picks label{font-size:13px;cursor:pointer;user-select:none}
+.day-picks input{margin-right:3px;width:auto}
+/* 结果区 */
+.errors .err-item{color:var(--red);margin:4px 0;font-size:14px}
+.conf-list .conf-item{border-left:3px solid;padding:6px 10px;margin:6px 0;border-radius:6px;font-size:14px;background:#fafafa}
+.conf-item.red{border-color:var(--red);background:#fff5f5}
+.conf-item.orange{border-color:var(--orange);background:#fffaf0}
+.conf-item.yellow{border-color:var(--yellow);background:#fffdf2}
+.conf-item.green{border-color:var(--green);background:#f4fbf7}
+.use-chk{display:inline-flex;align-items:center;gap:4px;font-size:13px;color:var(--muted);margin-right:8px;cursor:pointer}
+.cand-card{border-left-color:#9aa3b5 !important}
+.fit{font-size:13px;margin:6px 0 0;padding:4px 8px;border-radius:6px;background:#f2f4f9}
+.fit.green{color:var(--green);background:#f4fbf7}
+.fit.orange{color:var(--orange);background:#fffaf0}
+.fit.red{color:var(--red);background:#fdf1f1}
+.fit.yellow{color:var(--yellow);background:#fffdf2}
+.cand-src{font-size:12px;color:var(--muted);margin-top:4px;white-space:pre-wrap;word-break:break-all}
+.table-wrap{overflow-x:auto}
+.gride{width:100%;border-collapse:collapse;min-width:640px}
+.gride th{background:#f5f7fd;font-size:13px;padding:6px;border:1px solid var(--border)}
+.gride td{border:1px solid var(--border);padding:6px;vertical-align:top;font-size:12.5px;min-height:70px}
+.gride td.empty{color:#c3c9da;text-align:center;padding-top:18px}
+.chip{border-left:3px solid;background:#fafbff;border-radius:6px;padding:3px 6px;margin:4px 0;font-size:12.5px}
+.chip .pay{color:var(--muted)}
+.day-card{margin:12px 0;border:1px solid var(--border);border-radius:12px;padding:12px 14px;background:#fbfcff}
+.day-card h4{margin:0 0 8px;font-size:15px}
+.step{display:flex;gap:12px;padding:7px 0;border-bottom:1px dashed #edf0f7;font-size:14px;align-items:flex-start}
+.step:last-child{border-bottom:none}
+.step .t{flex:none;width:88px;font-weight:600;font-variant-numeric:tabular-nums}
+.step .body{flex:1;min-width:0}
+.step.leg .leg-mode{width:auto;padding:3px 6px;font-size:12px;margin-left:8px}
+.step.session{border-left:3px solid;margin:4px 0;padding-left:10px;border-bottom:none;background:#fff;border-radius:0 8px 8px 0}
+.step.rest,.step.note-step{color:var(--muted);font-size:13px}
+.step.note-step.red{color:var(--red);font-weight:600}
+.step.leg.err{color:var(--red)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin:10px 0}
+.stat{border:1px solid var(--border);border-radius:12px;padding:12px 14px;background:#fafbfe}
+.stat .k{font-size:12px;color:var(--muted)}
+.stat .v{font-size:20px;font-weight:700;margin-top:2px}
+.stat .d{font-size:12px;color:var(--muted);margin-top:2px}
+.stale{background:#fff7e0;border:1px solid #f2d98a;color:#8a6d1a;border-radius:10px;padding:8px 12px;font-size:13px;margin-top:10px}
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(10px);background:#23283a;color:#fff;padding:10px 18px;border-radius:10px;opacity:0;transition:.25s;pointer-events:none;max-width:88%;font-size:14px;z-index:9}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+footer{color:#9aa1b5;font-size:12px;margin-top:24px;text-align:center}
+.muted{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>📚 家教行程规划助手</h1>
+  <p class="sub">粘贴家教单原文 → 自动识别时间 / 薪资 / 地址 → 调用高德地图计算通勤 → 排出每周最优行程与收入</p>
+</header>
+
+<!-- ① 基础设置 -->
+<section class="card">
+  <h2 class="sec-title"><span class="badge-step">1</span>基础设置</h2>
+  <div class="grid3">
+    <div class="field"><label>所在城市(用于地址定位和公交查询)</label><input id="set-city" placeholder="如:深圳市" oninput="updSettings('city',this.value)"></div>
+    <div class="field"><label>我的住址</label><input id="set-home" placeholder="如:哈尔滨工业大学深圳校区" oninput="updSettings('home',this.value)"></div>
+    <div class="field"><label>高德 Web服务 Key</label><input id="set-key" placeholder="粘贴你的 Key" oninput="updSettings('key',this.value)"></div>
+  </div>
+  <div class="grid3" style="margin-top:10px">
+    <div class="field"><label>通勤方式</label><span style="padding:8px 0;display:inline-block">🚇 只坐地铁(步行接驳自动计算)</span></div>
+    <div class="field"><label>提前几分钟到(缓冲)</label><input id="set-buffer" type="number" min="0" max="120" oninput="updSettings('buffer',this.value)"></div>
+  </div>
+  <div class="grid3" style="margin-top:10px">
+    <div class="field"><label>✍️ 手动通勤模式</label><label style="padding:8px 0;display:inline-block"><input type="checkbox" id="set-manual-on" onchange="updManual('on',this.checked)"> 高德用不了时勾选</label></div>
+  </div>
+  <div class="grid3 hidden" id="manual-opts" style="margin-top:10px">
+    <div class="field"><label>家↔单 默认通勤(分钟)</label><input id="set-manual-home" type="number" min="1" max="240" oninput="updManual('home',this.value)"></div>
+    <div class="field"><label>单↔单 转场默认(分钟)</label><input id="set-manual-hop" type="number" min="1" max="240" oninput="updManual('hop',this.value)"></div>
+  </div>
+  <p class="hint">💡 高德 Key 免费申请:打开 <a href="https://console.amap.com/dev/key/app" target="_blank">console.amap.com</a> → 注册登录 → 应用管理 → 创建应用 → 添加 Key,服务平台选「<b>Web服务</b>」即可。Key 只保存在你本机浏览器里,不会外传。📱 手机上高德解析不了地址?勾选「<b>手动通勤模式</b>」,给每个单填上「到家分钟」,不用高德也能出完整方案。</p>
+</section>
+
+<!-- ② 空闲时间 -->
+<section class="card">
+  <h2 class="sec-title"><span class="badge-step">2</span>我的空闲时间(可选)</h2>
+  <p class="hint" style="margin-top:-4px">每个时段格式如 <b>10:00-12:00, 19:00-22:00</b>,可多段用逗号分开;留空表示该天无空闲。生成方案时,<b>没写上课时间的候选单会自动排进这些时段</b>(自动剔除已接单占用的时间),以整周通勤最短为目标。</p>
+  <div id="free-list"></div>
+</section>
+
+<!-- ③ 家教单 -->
+<section class="card">
+  <h2 class="sec-title"><span class="badge-step">3</span>已接的家教单(固定)</h2>
+  <p class="hint" style="margin-top:-4px">🔒 你的已接单和空闲时间已经预填好,并自动保存在本机浏览器。平台新发来的单子请粘贴到下方「候选新单」区,不会改动这里;方案里点「✅ 采用新单」可把选中的新单转为已接单。⏰ 生成方案时会尝试把已接单时间微调(前后各 1 小时以内)以缩短整体通勤,调整建议只显示在结果里,不修改卡片原始时间。</p>
+  <div id="job-list"></div>
+  <div class="btn-row" style="margin-top:6px">
+    <button class="btn btn-ghost btn-sm" onclick="fillSample()">🧪 填入示例数据</button>
+    <button class="btn btn-ghost btn-sm" onclick="clearAllJobs()">🗑 清空全部</button>
+  </div>
+</section>
+
+<!-- ③.5 候选新单 -->
+<section class="card">
+  <h2 class="sec-title"><span class="badge-step">4</span>候选新单<span style="font-weight:normal;font-size:13px;color:var(--muted)">(粘贴平台新发的单,已接单不受影响;再粘贴新单会清掉上一批候选)</span></h2>
+  <textarea id="cand-raw" rows="3" placeholder="把新家教单原文粘贴到这里,可一次粘多条:支持 ☀️编号☀️ 开头的微信群批量单(自动识别 学员地址/科目/情况/上课次数/要求/薪水),也支持【家教】开头或【编号】/【报价】/【地址】…这类【标签】分类格式(逐行或挤成一行均可)…"></textarea>
+  <div class="btn-row" style="margin-top:6px">
+    <button class="btn btn-sm" onclick="addCandidates()">✨ 解析候选单</button>
+    <button class="btn btn-sm" onclick="smartPick()">🧠 智能选单并生成方案</button>
+    <button class="btn btn-ghost btn-sm" onclick="clearCandidates()">🗑 清空候选</button>
+  </div>
+  <p class="hint">🧠 智能选单:从这批单里挑<b>通勤最短、其次薪资最高</b>的一单自动勾选并生成方案;上课时间/日子没写的单,程序会自动算出最合适的时间段排进方案。</p>
+  <div id="cand-list"></div>
+  <div id="rank-list"></div>
+</section>
+
+<!-- ⑤ 生成方案 -->
+<section class="card">
+  <h2 class="sec-title"><span class="badge-step">5</span>生成方案</h2>
+  <div class="btn-row">
+    <button class="btn" id="btn-plan" onclick="runPlan()">🚀 生成行程方案</button>
+    <button class="btn hidden" id="btn-adopt" onclick="adoptCandidates()">✅ 采用新单到已接单</button>
+    <button class="btn btn-ghost hidden" id="btn-copy" onclick="copyPlan()">📋 复制文字版方案</button>
+    <button class="btn btn-ghost btn-sm" onclick="clearRouteCache()">♻ 清除路线缓存重查</button>
+  </div>
+  <div class="progress hidden" id="progress"></div>
+  <div class="stale hidden" id="stale">⚠️ 上面有内容改动,当前方案可能已过期,请重新点「生成行程方案」。</div>
+  <div class="errors" id="errors"></div>
+</section>
+
+<!-- 结果 -->
+<section id="results" class="hidden">
+  <div class="card">
+    <h2 class="sec-title"><span class="badge-step">⚠</span>冲突与提醒</h2>
+    <div class="conf-list" id="conf-list"></div>
+  </div>
+  <div class="card">
+    <h2 class="sec-title"><span class="badge-step">📅</span>每周课表</h2>
+    <div class="table-wrap"><table class="gride" id="week-grid"></table></div>
+  </div>
+  <div class="card">
+    <h2 class="sec-title"><span class="badge-step">🗺</span>每日行程</h2>
+    <div id="day-cards"></div>
+    <p class="hint">课与课之间会自动比较「直接前往」和「先回家再出发」哪种更划算;所有路线均为纯地铁(含步行接驳)。⏰ 没写时间的候选单会被自动安排到空闲时段(最短通勤);「一周N次」的候选自动挑 N 个空闲日(各天同时段);已接单时间会在±1小时内自动微调,调整与安排建议显示在上方提醒区。🚶 排时遵守正常作息:上课和出门都在 8:00-19:00 内,课与课之间的预留时间 = 两单地址之间的通勤时间 + 15 分钟余量。</p>
+  </div>
+  <div class="card">
+    <h2 class="sec-title"><span class="badge-step">💰</span>收入与通勤统计</h2>
+    <div class="stats" id="stats"></div>
+  </div>
+</section>
+
+<footer>数据只保存在本机浏览器(localStorage) · 通勤时长按调用时的实时路况/公交时刻估算 · 建议用 Chrome 或 Edge 打开本文件</footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+/* ================= 常量与工具 ================= */
+var DAY_NAMES=['周日','周一','周二','周三','周四','周五','周六'];
+var DAY_SHORT=['日','一','二','三','四','五','六'];
+var MODES=[{id:'transit',label:'地铁',icon:'🚇'}];
+var JOB_COLORS=['#4361ee','#12b76a','#f79009'];
+var STORE_KEY='jiajiao-planner-v1';
+var CN_NUM={'零':0,'一':1,'二':2,'两':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10};
+var AMAP_BASE='https://restapi.amap.com/';
+
+var SAMPLE_JOBS=[
+  {raw:'【家教】周六上午9点到11点,地址:南山区中山公园地铁站附近'},
+  {raw:'【家教】周六下午1点半到6点,地址:光明区将围地铁站附近'},
+  {raw:'【家教】周日上午10点到12点,地址:宝安区怀德地铁站附近'}
+];
+var SAMPLE_CITY='深圳市';
+var SAMPLE_HOME='哈尔滨工业大学深圳校区';
+
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function fmtTime(min){
+  if(min==null||isNaN(min))return '--:--';
+  min=Math.round(min);
+  var h=Math.floor(min/60)%24, m=min%60;
+  return (h<10?'0':'')+h+':'+(m<10?'0':'')+m;
+}
+function fmtDur(min){
+  if(min==null||isNaN(min))return '--';
+  min=Math.round(min);
+  if(min<60)return min+'分钟';
+  var h=Math.floor(min/60),m=min%60;
+  return h+'小时'+(m?m+'分钟':'');
+}
+function fmtKm(m){return m==null?'--':(m/1000).toFixed(1)+' 公里';}
+function fmtMoney(x){if(x==null)return '';return (Math.round(x*100)%100===0)?String(Math.round(x)):x.toFixed(1);}
+function timeToMin(str){if(!str)return null;var m=String(str).match(/^(\d{1,2}):(\d{2})$/);if(!m)return null;return +m[1]*60+(+m[2]);}
+function cnToInt(s){
+  if(/^\d+$/.test(s))return parseInt(s,10);
+  if(CN_NUM[s]!=null)return CN_NUM[s];
+  if(s.indexOf('十')>=0){
+    var parts=s.split('十');
+    var a=parts[0]===''?1:CN_NUM[parts[0]];
+    var b=parts[1]===''?0:CN_NUM[parts[1]];
+    if(a==null||b==null)return null;
+    return a*10+b;
+  }
+  return null;
+}
+function dayNum(ch){
+  if(/^\d$/.test(ch)){var n=+ch;return (n>=1&&n<=7)?n%7:null;}
+  var map={'一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'日':0,'天':0};
+  return map[ch]!=null?map[ch]:null;
+}
+function parseFreeRanges(str){
+  var out=[];
+  if(!str)return out;
+  var re=/(\d{1,2}):(\d{2})\s*[-–—~～至到]\s*(\d{1,2}):(\d{2})/g,m;
+  while((m=re.exec(str))){
+    var s=+m[1]*60+(+m[2]), e=+m[3]*60+(+m[4]);
+    if(e>s)out.push([s,e]);
+  }
+  return out;
+}
+function modeLabel(id){var m=MODES.filter(function(x){return x.id===id;})[0];return m?m.label:id;}
+function modeIcon(id){var m=MODES.filter(function(x){return x.id===id;})[0];return m?m.icon:'';}
+
+/* ================= 解析函数(纯函数) ================= */
+function normalize(s){return String(s||'').replace(/\r/g,'\n').replace(/[ \t　]+/g,' ').replace(/\n+/g,'\n');}
+
+function parseDays(text){
+  var t=text.replace(/\s+/g,'');
+  t=t.replace(/[一每]\s*周\s*[一二两三四五六七八九十\d]\s*次/g,''); // 剔除"一周N次/每周N次",避免"一周"被误读成"周一"
+  var days={};
+  var all=[0,1,2,3,4,5,6];
+  if(/每天|每日|天天|周一至周日|周一到周日/.test(t)){all.forEach(function(d){days[d]=1;});return all;}
+  if(/工作日/.test(t)){[1,2,3,4,5].forEach(function(d){days[d]=1;});}
+  if(/周末|双休/.test(t)){days[6]=1;days[0]=1;}
+  // 范围: 周一至周五 / 周一到周日 / 周1-周5
+  var rm=t.match(/(?:周|星期|礼拜)([一二三四五六日天1-7])[至到–—-](?:周|星期|礼拜)?([一二三四五六日天1-7])/);
+  if(rm){
+    var a=dayNum(rm[1]),b=dayNum(rm[2]);
+    if(a!=null&&b!=null){for(var d=a;;d=(d+1)%7){days[d]=1;if(d===b)break;}}
+  }
+  // 枚举: 周二、四 / 周六周日 / 每周1,3,5
+  // 汉字星期直接认(周一19:00、周日10:00 都要认);数字星期后跟数字/冒号的(10:00里的1、4:30里的4)或跟"次"的(一次2h)不算
+  var t2=t.replace(/周|星期|礼拜/g,'周');
+  var DAY_CH='(?:[一二三四五六日天](?!次)|[1-7](?!次)(?![0-9:：]))';
+  var rm2=t2.match(new RegExp('周'+DAY_CH+'(?:[、,，和及与]*'+DAY_CH+')*','g'));
+  if(rm2){
+    rm2.forEach(function(seg){
+      for(var i=1;i<seg.length;i++){
+        var ch=seg[i];
+        if(/[一二三四五六日天1-7]/.test(ch)){var d2=dayNum(ch);if(d2!=null)days[d2]=1;}
+      }
+    });
+  }
+  return Object.keys(days).map(Number).sort(function(x,y){return x-y;});
+}
+
+function cnTimeToMin(h,p,half,min){
+  var n=/^\d+$/.test(h)?+h:cnToInt(h);
+  if(n==null||n>24)return null;
+  var total=n*60+(half?30:0)+(min?+min:0);
+  var per=p||'';
+  if(/(下午|傍晚)/.test(per)){if(n<12)total+=720;}
+  else if(/(晚上|夜里)/.test(per)){if(n===12)total=1440;else if(n<12)total+=720;}
+  else if(/中午/.test(per)){if(n<=2)total+=720;}
+  else if(/(凌晨|早上|上午)/.test(per)){/* 保持原值 */}
+  else{/* 无时段词:1~8点按下午/晚上算,9~11点按上午算 */
+    if(n>=1&&n<9)total+=720;
+  }
+  return total;
+}
+
+function parseDuration(text){
+  var t=text;
+  var m=t.match(/(?:每(?:次|节|节课|天|日|周)|每次课|一节课|共|一共)\s*(?:约)?\s*(半|一个半|[一二两三四五六七八九十\d.]+)\s*(?:个)?\s*(小时|钟头|时|h)(?:左右)?/);
+  if(!m)m=t.match(/(半|一个半|[一二两三四五六七八九十\d.]+)\s*(?:个)?\s*(?:小时|钟头|h)(?:左右)?/);
+  if(!m)return null;
+  var v=m[1],hours;
+  if(v==='半')hours=0.5;
+  else if(v==='一个半')hours=1.5;
+  else if(/^\d+(\.\d+)?$/.test(v))hours=+v;
+  else hours=cnToInt(v);
+  if(hours==null||hours<=0||hours>12)return null;
+  return Math.round(hours*60);
+}
+
+function parseTime(text){
+  var t=text;
+  var P='(凌晨|早上|上午|中午|下午|傍晚|晚上|夜里)?';
+  var H='([零一二两三四五六七八九十\\d]{1,3})';
+  // 1) HH:MM - HH:MM(带上午/下午等时段词时自动换算)
+  var m=t.match(new RegExp(P+'\\s*(\\d{1,2})[:：.](\\d{2})\\s*[-–—~～至到]\\s*(\\d{1,2})[:：.](\\d{2})'));
+  if(m){
+    var s1=cnTimeToMin(m[2],m[1],null,m[3]);
+    var e1=cnTimeToMin(m[4],m[1],null,m[5]);
+    if(s1!=null&&e1!=null){
+      if(e1<=s1)e1+=(m[1]?1440:720); // 结束不晚于开始 → 跨时段:如 晚上10:00-1:00(次日) / 4:30-9:00(16:30-21:00)
+      return {startMin:s1,endMin:e1};
+    }
+  }
+  // 2) 点/时 范围: 晚上7点到9点 / 下午2点到4点半
+  m=t.match(new RegExp(P+'\\s*'+H+'\\s*[点时]?\\s*(半)?\\s*(?:([0-5]?\\d)\\s*分)?\\s*[-–—~～至到]\\s*'+P+'\\s*'+H+'\\s*[点时]\\s*(半)?'));
+  if(m){
+    var p1=m[1],h1=m[2],half1=m[3],min1=m[4],p2=m[5],h2=m[6],half2=m[7];
+    var s=cnTimeToMin(h1,p1,half1,min1);
+    var e=cnTimeToMin(h2,p2||p1,half2,null);
+    if(s!=null&&e!=null&&e>0){
+      if(e<=s){
+        if(p1||p2)e+=1440; // 晚上10点到1点 → 次日1点
+        else e+=720; // 无时段词且结束早于开始(如 7点到9点)→ 按同一时段算
+      }
+      return {startMin:s,endMin:e};
+    }
+  }
+  // 2b) 纯数字小时范围: (10-12) / 9-11(不带"点/时"字)
+  m=t.match(/[（(]?\s*(\d{1,2})\s*[-–—~～至到]\s*(\d{1,2})\s*[)）]?(?![hH时小])/);
+  if(m){
+    var s5=cnTimeToMin(m[1],null,null,null);
+    var e5=cnTimeToMin(m[2],null,null,null);
+    if(s5!=null&&e5!=null){
+      if(e5<=s5)e5+=720; // 无时段词且结束早于开始 → 同按下午/晚上算
+      return {startMin:s5,endMin:e5};
+    }
+  }
+  // 3) 开始时间 + 时长: 晚上7点开始,每次2小时
+  var dur=parseDuration(t);
+  if(dur!=null){
+    var sm=t.match(new RegExp(P+'\\s*(\\d{1,2}):(\\d{2})'));
+    if(sm){var s3=cnTimeToMin(sm[2],sm[1],null,sm[3]);if(s3!=null)return {startMin:s3,durMin:dur};}
+    var sm2=t.match(new RegExp(P+'\\s*'+H+'\\s*[点时]\\s*(半)?\\s*(?:([0-5]?\\d)\\s*分)?'));
+    if(sm2){
+      var s2=cnTimeToMin(sm2[2],sm2[1],sm2[3],sm2[4]);
+      if(s2!=null)return {startMin:s2,durMin:dur};
+    }
+  }
+  // 4) 只有单个 HH:MM
+  var sm3=t.match(new RegExp(P+'\\s*(\\d{1,2}):(\\d{2})'));
+  if(sm3){var s4=cnTimeToMin(sm3[2],sm3[1],null,sm3[3]);if(s4!=null)return {startMin:s4};}
+  return null;
+}
+
+function parseSalary(text){
+  var t=text.replace(/\s+/g,'');
+  var m;
+  // 区间: 240-280/2h | 90-110/h | 400-480/4h | 240-280元/2小时
+  m=t.match(/(\d+(?:\.\d+)?)\s*[-–—~～至到]\s*(\d+(?:\.\d+)?)\s*元?\s*\/\s*[每]?\s*(?:个)?\s*([\d.]+)?\s*(小时|时|钟头|h)/i);
+  if(m){
+    var lo=parseFloat(m[1]),hi=parseFloat(m[2]),hh=m[3]?parseFloat(m[3]):1;
+    if(hh===1)return {type:'hourly',amount:lo,amountMax:hi};
+    return {type:'per',amount:lo,amountMax:hi,perDur:Math.round(hh*60)};
+  }
+  // 带单次时长: 150/1.5h | 200/2h | 100/h
+  m=t.match(/(\d+(?:\.\d+)?)\s*元?\s*\/\s*[每]?\s*(?:个)?\s*([\d.]+)\s*(小时|时|钟头|h)/i);
+  if(m){
+    var a2=parseFloat(m[1]),h2=parseFloat(m[2]);
+    if(h2===1)return {type:'hourly',amount:a2};
+    return {type:'per',amount:a2,perDur:Math.round(h2*60)};
+  }
+  // 4000/月
+  m=t.match(/(\d+(?:\.\d+)?)\s*元?\s*\/\s*月/i);
+  if(m)return {type:'monthly',amount:parseFloat(m[1])};
+  // 时薪: 100元/小时 | 80/小时 | 100元每小时 | 每小时100元 | 课时费80/小时
+  m=t.match(/(\d+(?:\.\d+)?)\s*元\s*[/每一]?\s*(?:个)?\s*(小时|时|钟头|h)/i)
+   ||t.match(/(\d+(?:\.\d+)?)\s*\/\s*(?:个)?\s*(小时|时|钟头|h)/i)
+   ||t.match(/[每一]?\s*(?:个)?\s*(?:小时|时|h)\s*(\d+(?:\.\d+)?)\s*元?/i)
+   ||t.match(/(?:时薪|课酬|课时费|工资)\s*(\d+(?:\.\d+)?)\s*元?\s*(?:[/每一]?\s*(?:个)?\s*(小时|时|h))?/i);
+  if(m)return {type:'hourly',amount:parseFloat(m[1]||m[2])};
+  // 按次: 120元/次 | 每次120元 | 100元一节课
+  m=t.match(/(\d+(?:\.\d+)?)\s*元\s*[/每一]?\s*(?:节|节课|次|天|日|回)/)
+   ||t.match(/(?:一节|一节课|每次|每节)\s*(\d+(?:\.\d+)?)(?!\s*(?:个)?(?:小时|时|h|分))\s*元?/);
+  if(m)return {type:'per',amount:parseFloat(m[1]||m[2])};
+  // 月薪
+  m=t.match(/(?:月薪|一个月|每月)\s*(\d+(?:\.\d+)?)\s*元?/);
+  if(m)return {type:'monthly',amount:parseFloat(m[1])};
+  return null;
+}
+
+function cleanAddr(s){
+  return String(s)
+    .replace(/^(?:在|是|位于|于|地址|地点|位置)\s*[:：]?\s*/,'')
+    .replace(/\s*(?:直行|步行|前行|再走|走)\s*\d+\s*(?:米|分钟|min|m)\s*$/,'')
+    .replace(/\s*(?:附近|旁边|对面|楼下|门口|旁|内|即可|集合)$/,'')
+    .replace(/(区|县|市|镇)即/,'$1')
+    .trim();
+}
+
+function parseAddress(text){
+  var lines=text.split(/[\n\r。;；|]/);
+  // 1) 明确标注: 地址:xxx
+  for(var i=0;i<lines.length;i++){
+    var m=lines[i].match(/(?:地址|地点|位置|住址|上课地址|上课地点)\s*[:：]\s*(.+)/);
+    if(m){
+      var a=m[1].split(/[,，、;；]/)[0];
+      var c=cleanAddr(a);
+      if(c)return c;
+    }
+  }
+  // 2) 按关键词打分
+  var best='',bestScore=0;
+  for(var j=0;j<lines.length;j++){
+    var segs=lines[j].split(/[,，、;；]/);
+    for(var k=0;k<segs.length;k++){
+      var s=segs[k].trim();
+      if(!s||/^\d+$/.test(s))continue;
+      var score=0;
+      if(/(小区|花园|苑|公寓|家园|新村?|路|街|巷|道|号|镇|广场|大厦|中心|大学|中学|小学|学院|校区|地铁|号线|站|医院|超市|银行|公园|楼|栋|单元|室|出口|门)/.test(s))score+=10;
+      if(/(附近|旁边|对面|楼下|门口|旁|内)/.test(s))score+=3;
+      if(/^(在|是|位于|于)/.test(s))score+=1;
+      if(/^\d+[元块]/.test(s)||/\d+:\d+/.test(s)||/(?:小时|次|节)\s*$/.test(s)||/(?:月薪|日结|周结|月结|次结)/.test(s))score-=8;
+      if(score>bestScore){bestScore=score;best=s;}
+    }
+  }
+  return bestScore>=10?cleanAddr(best):'';
+}
+
+function parseNote(text){
+  var t=text.replace(/\s+/g,'');
+  var parts=[];
+  var gm=t.match(/幼儿园|学前班|小升初|中考|高考|(?:[一二三四五六]|[1-9]|初一|初二|初三|高一|高二|高三|小[一二三四五六]|初[一二三]|高[一二三])年级|[一二三四五六\d]+岁(?:女孩|男孩|孩子)?|初[一二三]|高[一二三]|小学|初中|高中/);
+  if(gm)parts.push(gm[0]);
+  var sm=t.match(/奥数|编程|数理化|物理|化学|生物|历史|地理|政治|语文|数学|英语|科学|全科|钢琴|画画|美术|书法/);
+  if(sm)parts.push(sm[0]);
+  var pm=t.match(/日结|周结|次结|月结|现结/);
+  if(pm)parts.push(pm[0]);
+  return parts.join(' · ');
+}
+
+// 微信群家教单标准格式:每单以 ☀️编号 开头(结尾的 ☀️ 可省略;回收单前有 ♻️回收单/☀️回收单 前缀),逐行字段:
+// 学员地址:/辅导科目:/学员情况:/上课次数:/老师要求:/老师薪水:(兼容 地址:/科目:/情况:/次数:/要求:/薪水: 简写)
+function parseWechatPosting(text){
+  var idm=text.match(/☀️\s*(\d{6,10})/);
+  var id=idm?idm[1]:'';
+  var f={addr:'',subject:'',grade:'',freq:'',req:'',sal:''};
+  text.split('\n').forEach(function(ln){
+    var m=ln.match(/^\s*(?:学员地址|地址)\s*[:：]\s*(.+?)\s*$/);
+    if(m){f.addr=m[1];return;}
+    m=ln.match(/^\s*(?:辅导科目|科目)\s*[:：]\s*(.+?)\s*$/);
+    if(m){f.subject=m[1];return;}
+    m=ln.match(/^\s*(?:学员情况|情况)\s*[:：]\s*(.+?)\s*$/);
+    if(m){f.grade=m[1];return;}
+    m=ln.match(/^\s*(?:上课次数|次数)\s*[:：]\s*(.+?)\s*$/);
+    if(m){f.freq=m[1];return;}
+    m=ln.match(/^\s*(?:老师要求|要求)\s*[:：]\s*(.+?)\s*$/);
+    if(m){f.req=m[1];return;}
+    m=ln.match(/^\s*(?:老师薪水|薪水)\s*[:：]\s*(.+?)\s*$/);
+    if(m){f.sal=m[1];return;}
+  });
+  // 一周N次 → timesPerWeek(没写具体日子的,N次就自动挑 N 个空闲日,各天同时段)
+  var fm=f.freq.match(/([一二两三四五六七八九十\d]+)\s*次/);
+  var timesPerWeek=fm?(cnToInt(fm[1])||parseInt(fm[1],10)||0):0;
+  var days=parseDays(text);
+  if(timesPerWeek&&days.length>timesPerWeek)days=[]; // 一周N次但给出的日子比N多(如"周五晚上或周末早上")→ 哪天上课待定
+  var t=parseTime(f.freq); // 时间只从"上课次数"行解析,避免薪资里的 2h/1.5h 被误读
+  var salary=parseSalary(f.sal||text);
+  var addr=f.addr?cleanAddr(f.addr.replace(/^深圳(?:市)?\s*/,'')):parseAddress(text);
+  var note=parseNote(text);
+  if(timesPerWeek&&!days.length)note=(note?note+' · ':'')+'每周'+timesPerWeek+'次';
+  var durMin=t?t.durMin:null;
+  if(durMin==null&&salary&&salary.perDur)durMin=salary.perDur; // 150/1.5h → 每次按1.5小时排
+  if(durMin==null&&t&&t.startMin!=null&&t.endMin!=null)durMin=t.endMin-t.startMin; // 写了起止时间的直接算时长
+  var dr=parseDurRange(f.freq);
+  if(dr&&durMin==null)durMin=dr.min;
+  if(dr)note=(note?note+' · ':'')+dr.txt;
+  if(durMin==null)durMin=parseDuration(f.freq);
+  var label=(f.subject||'')+(id?((f.subject?' · ':'')+id):'');
+  return {days:days,startMin:t?t.startMin:null,endMin:t?t.endMin:null,durMin:durMin,salary:salary,address:addr,note:note,timesPerWeek:timesPerWeek,label:label,id:id};
+}
+
+// 平台模板格式:每单以 城市+编号 开头(如 深圳2026010905),字段为"标签:值"并以空格分隔,如:
+// 深圳2026010905 家庭地址:龙岗区合正丹郡 学生年级:高一升高二 学生性别:男 辅导科目:数学 每周几次:周六下午2.30-4.30 老师性别:不限 老师要求:有经验， 本科是哈工深或南科大 课时费:170/小时
+var APP_LABELS='家庭地址|学员地址|学生地址|上课地址|地址|学生年级|学员年级|年级|学生性别|学员性别|性别|辅导科目|科目|每周几次|每周次数|每周频次|上课次数|次数|老师性别|教师性别|老师要求|教师要求|要求|课时费|薪资|薪水|薪酬|时薪';
+function isAppPosting(t){
+  if(/(?:家庭地址|学生年级|每周几次|课时费)\s*[:：]/.test(t))return true;
+  return /^[一-龥]{2,6}\s*\d{6,12}/.test(t)&&/(?:辅导科目|学员地址|学生性别|老师要求|每周次数)\s*[:：]/.test(t);
+}
+function parseAppPosting(raw){
+  var text=String(raw||'').trim();
+  var head=text.match(/^[一-龥]{2,6}\s*(\d{6,12})/);
+  var id=head?head[1]:'';
+  var city=head?head[0].replace(/\s*\d+$/,'').trim():'';
+  var f={addr:'',grade:'',gender:'',subject:'',freq:'',req:'',sal:''};
+  // 把"标签:"替换成哨兵,值 = 该标签到下一个标签之间的内容
+  var marked=text.replace(new RegExp('(?:^|[\\s,，;；])('+APP_LABELS+')\\s*[:：]\\s*','g'),'$1');
+  var parts=marked.split('');
+  for(var i=1;i<parts.length;i+=2){
+    var lab=parts[i],val=(parts[i+1]||'').trim();
+    if(!val)continue;
+    if(/^(?:家庭地址|学员地址|学生地址|上课地址|地址)$/.test(lab)){if(!f.addr)f.addr=val;}
+    else if(/^(?:学生年级|学员年级|年级)$/.test(lab)){if(!f.grade)f.grade=val;}
+    else if(/^(?:学生性别|学员性别|性别)$/.test(lab)){if(!f.gender)f.gender=val;}
+    else if(/^(?:辅导科目|科目)$/.test(lab)){if(!f.subject)f.subject=val;}
+    else if(/^(?:每周几次|每周次数|每周频次|上课次数|次数)$/.test(lab)){if(!f.freq)f.freq=val;}
+    else if(/^(?:老师要求|教师要求|要求)$/.test(lab)){if(!f.req)f.req=val;}
+    else if(/^(?:课时费|薪资|薪水|薪酬|时薪)$/.test(lab)){if(!f.sal)f.sal=val;}
+    // 老师性别/教师性别 与排课无关,忽略
+  }
+  var t=parseTime(f.freq)||parseTime(text);
+  var days=parseDays(f.freq)||parseDays(text);
+  var tpw=0;
+  var fm=(f.freq||'').match(/([一二两三四五六七八九十\d]+)\s*次/);
+  if(fm)tpw=cnToInt(fm[1])||parseInt(fm[1],10)||0;
+  if(tpw&&days.length>tpw)days=[]; // 一周N次但日子写多了 → 具体哪天待定
+  var salary=parseSalary(f.sal)||parseSalary(text);
+  var addr=f.addr?cleanAddr(f.addr):parseAddress(text);
+  if(city&&addr&&city.indexOf('深圳')<0&&addr.indexOf(city)<0)addr=city+addr; // 外地城市补上城市名前缀,便于定位
+  var durMin=t?t.durMin:null;
+  if(durMin==null&&salary&&salary.perDur)durMin=salary.perDur;
+  if(durMin==null&&t&&t.startMin!=null&&t.endMin!=null)durMin=t.endMin-t.startMin;
+  var noteParts=[];
+  if(f.grade)noteParts.push(f.grade);
+  if(f.subject)noteParts.push(f.subject);
+  if(f.gender&&f.gender!=='不限')noteParts.push(f.gender);
+  var dr=parseDurRange(f.freq);
+  if(dr){if(durMin==null)durMin=dr.min;noteParts.push(dr.txt);}
+  if(durMin==null)durMin=parseDuration(f.freq);
+  if(f.req)noteParts.push(f.req);
+  var note=noteParts.join(' · ')||parseNote(text);
+  var label=(f.subject||'')+(id?((f.subject?' · ':'')+id):'');
+  return {days:days,startMin:t?t.startMin:null,endMin:t?t.endMin:null,durMin:durMin,salary:salary,address:addr,note:note,timesPerWeek:tpw,label:label,id:id};
+}
+
+// 时长区间:"一次2-4h / 每次1.5-2小时" → 排时按最短时长,区间写进备注
+function parseDurRange(text){
+  var m=(text||'').match(/(?:一次|每次|每节|一节课|每次课)\s*(\d+(?:\.\d+)?)\s*[-–—~～至到]\s*(\d+(?:\.\d+)?)\s*(?:个)?\s*(?:小时|h)/i);
+  return m?{min:Math.round(+m[1]*60),max:Math.round(+m[2]*60),txt:'一次'+m[1]+'-'+m[2]+'小时'}:null;
+}
+
+// 中介模板格式:每单以 #标题 或 【编号】 开头(可省略),字段"【标签】[:：]值"逐行或挤在同一行均可,如:
+// 【编号】：TXY-szxBi150982（长期单）【报价】：200-300/h【地址】：宝安区即马安山地铁口直行500米【年级】：高三女【科目】：数理化【课次】：周六（具体时间时间可协商），一周1次，一次2-4h【要求】：…
+var BRACKET_LABELS='编号|单号|报价|课时费|薪资|薪水|薪酬|时薪|价格|地址|地点|位置|住址|年级|学生年级|学员年级|性别|学生性别|科目|辅导科目|学科|课次|次数|上课次数|时间|要求|老师要求|学员情况|情况';
+function isBracketPosting(t){
+  var n=(t.match(new RegExp('【(?:'+BRACKET_LABELS+')】','g'))||[]).length;
+  return n>=2||(n===1&&/【[^】]{1,10}】\s*[:：]/.test(t));
+}
+function parseBracketPosting(raw){
+  var text=String(raw||'').replace(/\r/g,'').trim();
+  var f={addr:'',grade:'',gender:'',subject:'',freq:'',req:'',sal:'',id:''};
+  var extra=[];
+  // 按"【标签】[:：]"哨兵切分(不要求标签在行首,换行被吃掉的转发文本也能拆);多行值(如【要求】)自然保留
+  var segs=text.split(/【([^】]{1,10})】\s*[:：]?\s*/);
+  var pairs=[];
+  for(var i=1;i<segs.length;i+=2){
+    var lab=segs[i].trim(),val=(segs[i+1]||'').trim();
+    if(val)pairs.push([lab,val]);
+  }
+  if(pairs.length){
+    // 末字段尾部黏着的下一单表头("…女老师,福田区：物理")摘出来,只作地址/科目兜底
+    var last=pairs[pairs.length-1];
+    var tm=last[1].match(/(?:[\n。，,、；;])\s*([一-龥]{2,4}(?:区|县|市))\s*[:：]\s*([^。，,、；;【\n]{0,15})\s*$/);
+    if(tm){last[1]=last[1].slice(0,tm.index).trim();if(!last[1])pairs.pop();}
+  }
+  pairs.forEach(function(p){
+    var lab=p[0],val=p[1];
+    if(/^(?:编号|单号)$/.test(lab)){
+      var pm=val.match(/[（(][^）)]*[）)]/g);
+      if(pm)pm.forEach(function(x){extra.push(x.replace(/[（()）]/g,''));});
+      var id=val.replace(/[（(][^）)]*[）)]/g,'').trim();
+      if(!f.id)f.id=id;
+    }
+    else if(/^(?:报价|课时费|薪资|薪水|薪酬|时薪|价格)$/.test(lab)){if(!f.sal)f.sal=val;}
+    else if(/^(?:地址|地点|位置|住址)$/.test(lab)){if(!f.addr)f.addr=val;}
+    else if(/^(?:年级|学生年级|学员年级)$/.test(lab)){if(!f.grade)f.grade=val;}
+    else if(/^(?:性别|学生性别)$/.test(lab)){if(!f.gender)f.gender=val;}
+    else if(/^(?:科目|辅导科目|学科)$/.test(lab)){if(!f.subject)f.subject=val;}
+    else if(/^(?:课次|次数|上课次数|时间)$/.test(lab)){if(!f.freq)f.freq=val;}
+    else if(/^(?:要求|老师要求|学员情况|情况)$/.test(lab)){if(!f.req)f.req=val;}
+  });
+  // 无【地址】/【科目】时,用表头"宝安区：数理化"这类行兜底(同行黏着或独立成行均可)
+  if(!f.addr||!f.subject){
+    var hm=text.match(/(?:^|\n)\s*([一-龥]{2,4}(?:区|县|市))\s*[:：]\s*([^【\n]{0,20})/)
+         ||text.match(/[。，,、；;]\s*([一-龥]{2,4}(?:区|县|市))\s*[:：]\s*([^。，,、；;【]{0,15})\s*$/);
+    if(hm){if(!f.addr)f.addr=hm[1];if(!f.subject)f.subject=hm[2].trim();}
+  }
+  // 年级里常带性别:"高三女" → 高三 + 女
+  var gm=(f.grade||'').match(/^(.*?)(男|女)(?:生|孩|宝)?$/);
+  if(gm&&!f.gender){f.gender=gm[2];f.grade=gm[1];}
+  var t=parseTime(f.freq);
+  var days=parseDays(f.freq)||parseDays(text);
+  var tpw=0;
+  var fm=(f.freq||'').match(/([一二两三四五六七八九十\d]+)\s*次/);
+  if(fm)tpw=cnToInt(fm[1])||parseInt(fm[1],10)||0;
+  if(tpw&&days.length>tpw)days=[]; // 一周N次但日子写多了 → 具体哪天待定
+  var salary=parseSalary(f.sal)||parseSalary(text);
+  var addr=f.addr?cleanAddr(f.addr):parseAddress(text);
+  var durMin=t?t.durMin:null;
+  if(durMin==null&&salary&&salary.perDur)durMin=salary.perDur;
+  if(durMin==null&&t&&t.startMin!=null&&t.endMin!=null)durMin=t.endMin-t.startMin;
+  var noteParts=[];
+  if(f.grade)noteParts.push(f.grade);
+  if(f.gender&&f.gender!=='不限')noteParts.push(f.gender);
+  if(f.subject)noteParts.push(f.subject);
+  var dr=parseDurRange(f.freq);
+  if(dr){if(durMin==null)durMin=dr.min;extra.push(dr.txt);}
+  if(durMin==null)durMin=parseDuration(f.freq);
+  if(extra.length)noteParts.push(extra.join('、'));
+  if(f.req)noteParts.push(f.req);
+  var note=noteParts.join(' · ')||parseNote(text);
+  var label=(f.subject||'')+(f.id?((f.subject?' · ':'')+f.id):'');
+  return {days:days,startMin:t?t.startMin:null,endMin:t?t.endMin:null,durMin:durMin,salary:salary,address:addr,note:note,timesPerWeek:tpw,label:label,id:f.id};
+}
+
+function parseJobText(raw){
+  var text=normalize(raw);
+  if(/☀️\s*\d{6,10}/.test(text))return parseWechatPosting(text);
+  if(isAppPosting(text))return parseAppPosting(text);
+  if(isBracketPosting(text))return parseBracketPosting(text);
+  var days=parseDays(text);
+  var t=parseTime(text);
+  var salary=parseSalary(text);
+  var address=parseAddress(text);
+  var note=parseNote(text);
+  var durMin=t?t.durMin:null;
+  if(durMin==null&&t&&t.startMin!=null&&t.endMin!=null)durMin=t.endMin-t.startMin; // 写了起止时间的直接算时长
+  return {days:days,startMin:t?t.startMin:null,endMin:t?t.endMin:null,durMin:durMin,salary:salary,address:address,note:note};
+}
+
+/* ================= 状态与存储 ================= */
+// 把内置的三单示例解析成卡片结构(默认预填,打开网页就有)
+function sampleJobsParsed(){
+  return SAMPLE_JOBS.map(function(s){
+    var j=emptyJob();
+    j.raw=s.raw;
+    var r=parseJobText(s.raw);
+    j.days=r.days||[];
+    if(r.startMin!=null)j.start=fmtTime(r.startMin);
+    if(r.endMin!=null)j.end=fmtTime(r.endMin);
+    if(r.salary){j.payType=r.salary.type;j.amount=String(r.salary.amount);}
+    if(r.address)j.address=r.address;
+    if(r.note)j.note=r.note;
+    return j;
+  });
+}
+function defaultState(){
+  return {
+    settings:{city:'深圳市',home:'哈尔滨工业大学深圳校区',key:'613e32a79222f9e37d90a7de40dd009d',mode:'transit',buffer:10,manual:{on:false,home:30,hop:20}},
+    free:['08:00-19:00','','','','','14:00-18:00','08:00-19:00'], // 周日、周五、周六;未定时候选单自动排进这些时段(自动剔除已接单占用时间)
+    jobs:sampleJobsParsed(),
+    cands:[],
+    legMode:{},
+    geoCache:{},
+    routeCache:{},
+    v:2 // 空闲时间数据版本:2 起为「周五14-18、周六日8-19」,旧版存储的空闲时间不沿用
+  };
+}
+function emptyJob(){return {label:'',raw:'',days:[],start:'',end:'',durMin:'',payType:'hourly',amount:'',amountMax:'',address:'',note:'',timesPerWeek:'',homeMin:''};}
+
+var state=loadState();
+var planStale=false;
+var lastPlan=null;
+
+function loadState(){
+  try{
+    var s=localStorage.getItem(STORE_KEY);
+    if(s){
+      var o=JSON.parse(s);
+      var d=defaultState();
+      if(o&&o.settings)d.settings=Object.assign(d.settings,o.settings);
+      d.settings.manual=Object.assign({on:false,home:30,hop:20},d.settings.manual||{});
+      if(o&&o.v>=2&&o.free&&o.free.length===7&&o.free.some(function(x){return String(x||'').trim();}))d.free=o.free;
+      if(o&&o.jobs&&o.jobs.length&&o.jobs.some(function(j){return (j.raw||'').trim()||(j.address||'').trim()||(j.label||'').trim();}))d.jobs=o.jobs.map(function(j){return Object.assign(emptyJob(),j);});
+      while(d.jobs.length<3)d.jobs.push(emptyJob());
+      if(o&&o.cands&&o.cands.length)d.cands=o.cands.map(function(j){return Object.assign(emptyJob(),j);});
+      if(o&&o.legMode)d.legMode=o.legMode||{};
+      if(o&&o.geoCache)d.geoCache=o.geoCache||{};
+      if(o&&o.routeCache)d.routeCache=o.routeCache||{};
+      return d;
+    }
+  }catch(e){}
+  return defaultState();
+}
+function save(){
+  try{localStorage.setItem(STORE_KEY,JSON.stringify(state));}catch(e){}
+}
+
+/* ================= DOM 工具 ================= */
+function el(id){return document.getElementById(id);}
+var toastTimer=null;
+function toast(msg){
+  var t=el('toast');
+  t.textContent=msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(function(){t.classList.remove('show');},2600);
+}
+function markStale(){
+  if(lastPlan){planStale=true;updStale();}
+}
+function updStale(){el('stale').classList.toggle('hidden',!planStale);}
+
+/* ================= 输入区渲染 ================= */
+function renderSettings(){
+  var s=state.settings;
+  el('set-city').value=s.city;
+  el('set-home').value=s.home;
+  el('set-key').value=s.key;
+  el('set-buffer').value=s.buffer;
+  var m=s.manual||{on:false,home:30,hop:20};
+  el('set-manual-on').checked=!!m.on;
+  el('set-manual-home').value=m.home||'';
+  el('set-manual-hop').value=m.hop||'';
+  el('manual-opts').classList.toggle('hidden',!m.on);
+}
+function renderFree(){
+  var html='';
+  for(var i=0;i<7;i++){
+    html+='<div class="field-row"><label>'+DAY_NAMES[(i+1)%7]+'</label><input class="note" style="flex:1" placeholder="留空=无空闲,如 10:00-12:00, 19:00-22:00" value="'+esc(state.free[(i+1)%7])+'" oninput="updFree('+((i+1)%7)+',this.value)"></div>';
+  }
+  el('free-list').innerHTML=html;
+}
+function renderJobs(){
+  var manOn=!!(state.settings.manual&&state.settings.manual.on);
+  var manHome=((state.settings.manual||{}).home)||30;
+  var html='';
+  for(var i=0;i<state.jobs.length;i++){
+    var j=state.jobs[i];
+    html+='<div class="job-card" style="border-left-color:'+JOB_COLORS[i%JOB_COLORS.length]+'">'
+      +'<div class="job-head"><span class="job-dot" style="background:'+JOB_COLORS[i%JOB_COLORS.length]+'"></span><b>单'+(i+1)+'</b>'
+      +'<input placeholder="学生称呼,如:初二数学·李同学" value="'+esc(j.label)+'" oninput="updJob('+i+',\'label\',this.value)">'
+      +'<button class="btn btn-ghost btn-sm" onclick="clearJob('+i+')">清空</button></div>'
+      +'<textarea rows="3" placeholder="把家教单原文粘贴到这里(微信群消息、贴吧帖子等)…" oninput="updJob('+i+',\'raw\',this.value)">'+esc(j.raw)+'</textarea>'
+      +'<div class="btn-row" style="margin-top:6px"><button class="btn btn-sm" onclick="fillJobFromRaw('+i+')">✨ 一键解析</button></div>'
+      +'<div class="job-fields">'
+      +'<div class="field-row"><label>上课日</label><span class="day-picks">'
+      +[1,2,3,4,5,6,0].map(function(d){return '<label><input type="checkbox" '+(j.days.indexOf(d)>=0?'checked':'')+' onchange="toggleDay('+i+','+d+',this.checked)">'+DAY_SHORT[d]+'</label>';}).join('')
+      +'</span></div>'
+      +'<div class="field-row"><label>时间</label><input type="time" value="'+esc(j.start)+'" oninput="updJob('+i+',\'start\',this.value)"><span class="muted">~</span><input type="time" value="'+esc(j.end)+'" oninput="updJob('+i+',\'end\',this.value)">'
+      +'<select onchange="updJob('+i+',\'payType\',this.value)">'
+      +'<option value="hourly"'+(j.payType==='hourly'?' selected':'')+'>元/小时</option>'
+      +'<option value="per"'+(j.payType==='per'?' selected':'')+'>元/次</option>'
+      +'<option value="monthly"'+(j.payType==='monthly'?' selected':'')+'>月薪</option>'
+      +'</select>'
+      +'<input class="amount" type="number" min="0" step="1" placeholder="金额" value="'+esc(j.amount)+'" oninput="updJob('+i+',\'amount\',this.value)"></div>'
+      +'<div class="field-row"><label>地址</label><input class="addr" placeholder="学生家地址(最好写详细,含区/路/小区)" value="'+esc(j.address)+'" oninput="updJob('+i+',\'address\',this.value)"></div>'
+      +(manOn?'<div class="field-row"><label>到家分钟</label><input class="amount" type="number" min="1" max="240" placeholder="留空=默认'+manHome+'分" value="'+esc(j.homeMin||'')+'" oninput="updJob('+i+',\'homeMin\',this.value)"></div>':'')
+      +'<div class="field-row"><label>备注</label><input class="note" placeholder="年级、科目、结款方式等(解析自动填)" value="'+esc(j.note)+'" oninput="updJob('+i+',\'note\',this.value)"></div>'
+      +'</div></div>';
+  }
+  el('job-list').innerHTML=html;
+}
+
+/* ================= 候选新单 ================= */
+function jobTitle(idx,j){
+  if(j&&j.label)return j.label;
+  return idx<state.jobs.length?('单'+(idx+1)):('候选'+(idx-state.jobs.length+1));
+}
+function splitPostings(t){
+  var s=String(t||'');
+  // 微信群批量单格式:每单以 ☀️编号 开头(结尾的 ☀️ 可省略;回收单前有 ♻️回收单/☀️回收单 前缀),按标记切分并保留行结构
+  if(/☀️\s*\d{6,10}/.test(s)){
+    var marked=s.replace(/(?=♻️\s*回收单\s*☀️\s*\d{6,10})|(?=☀️\s*回收单\s*☀️\s*\d{6,10})|(?<!回收单)(?=☀️\s*\d{6,10})/g,'');
+    return marked.split('').map(function(x){return x.replace(/\r/g,'').trim();}).filter(Boolean);
+  }
+  // 平台模板批量单:每单以 城市+编号 开头(如 深圳2026010905),"标签:值"字段以空格分隔;不是表头的行并入上一单
+  if(isAppPosting(s)){
+    if(/^[一-龥]{2,6}\s*\d{6,12}/m.test(s)){
+      var psegs=s.split(/(?=^[一-龥]{2,6}\s*\d{6,12})/m);
+      var pout=[];
+      for(var pi=0;pi<psegs.length;pi++){
+        var pseg=psegs[pi].replace(/\r/g,'').trim();
+        if(!pseg)continue;
+        if(/^[一-龥]{2,6}\s*\d{6,12}/.test(pseg))pout.push(pseg);
+        else if(pout.length)pout[pout.length-1]+='\n'+pseg;
+        else pout.push(pseg);
+      }
+      return pout;
+    }
+    return [s.trim()];
+  }
+  // 中介模板批量单:每单以 #标题 或 【编号】 开头,字段"【标签】[:：]值"逐行或同行;表头行并入下一单
+  if(isBracketPosting(s)){
+    var useHash=/^\s*#/m.test(s);
+    var bsegs=useHash?s.split(/(?=^\s*#)/m):s.split(/(?=【(?:编号|单号)】)/);
+    var bout=[],bpending='';
+    for(var bi=0;bi<bsegs.length;bi++){
+      var bseg=bsegs[bi].replace(/\r/g,'').trim();
+      if(!bseg)continue;
+      var isHead=useHash?/^\s*#/.test(bseg):/^\s*【(?:编号|单号)】/.test(bseg);
+      if(isHead){
+        // 段尾黏着的下一单表头("…女老师\n福田区：物理")摘出来,留给下一单当兜底地址/科目
+        var tail=bseg.match(/(?:[\n。，,、；;])\s*([一-龥]{2,4}(?:区|县|市))\s*[:：]\s*([^。，,、；;【\n]{0,15})\s*$/);
+        if(tail)bseg=bseg.slice(0,tail.index).trim();
+        bout.push((bpending?bpending+'\n':'')+bseg);
+        bpending=tail?tail[1]+'：'+tail[2]:'';
+      }
+      else bpending=bpending?bpending+'\n'+bseg:bseg;
+    }
+    if(bpending&&isBracketPosting(bpending))bout.push(bpending);
+    return bout;
+  }
+  // 旧格式:每条以【家教】开头
+  return s.split(/(?=【家教】)/).map(function(x){return x.replace(/\s+/g,' ').trim();}).filter(Boolean);
+}
+// 候选单的即时体检(纯本地计算,不调接口):与已接单是否重叠、是否落在空闲时段内
+function evalCandFit(c){
+  var st=timeToMin(c.start),en=timeToMin(c.end);
+  var dur=+c.durMin>0?+c.durMin:120;
+  if(st==null&&en==null){
+    // 没写时间:由系统按最短通勤自动排时(上课日没勾选则系统挑最佳的一天;一周N次挑 N 个空闲日)
+    var tpw=parseInt(c.timesPerWeek,10)||0;
+    var daysTxt=c.days.length?c.days.map(function(d){return DAY_NAMES[d];}).join('、'):(tpw>1?('系统挑选最佳 '+tpw+' 天(各天同时段)'):'系统挑选最佳上课日');
+    return {level:'green',text:'⏰ 未定时间(按每次'+fmtDur(dur)+'计),生成方案时自动安排到空闲时段:'+daysTxt+',以最短通勤为目标'};
+  }
+  if(!c.days.length||st==null||en==null)return {level:'yellow',text:'⚠️ 上课日/时间不全,请先补全'};
+  for(var i=0;i<state.jobs.length;i++){
+    var j=state.jobs[i];
+    if(!j.raw&&!j.address&&!j.label)continue;
+    var hit=j.days.some(function(d){return c.days.indexOf(d)>=0;});
+    if(!hit)continue;
+    var a=timeToMin(j.start),b=timeToMin(j.end);
+    if(a==null||b==null)continue;
+    if(st<b&&en>a)return {level:'red',text:'❌ 与已接单'+(i+1)+'('+(j.label||'未命名')+')时间重叠,不建议接'};
+  }
+  var free=state.free.map(parseFreeRanges);
+  if(free.some(function(r){return r.length>0;})){
+    var bad=c.days.filter(function(d){
+      var r=free[d];
+      if(!r.length)return false; // 该天没填空闲 = 未约束
+      return !r.some(function(rr){return st>=rr[0]&&en<=rr[1];});
+    });
+    if(bad.length)return {level:'orange',text:'🟠 '+bad.map(function(d){return DAY_NAMES[d];}).join('、')+' 未覆盖该时段(不在你填的空闲时间内)'};
+  }
+  return {level:'green',text:'✅ 时间不冲突,可纳入方案试排'};
+}
+function renderCands(){
+  var manOn=!!(state.settings.manual&&state.settings.manual.on);
+  var manHome=((state.settings.manual||{}).home)||30;
+  var html='';
+  state.cands.forEach(function(c,i){
+    var fit=evalCandFit(c);
+    html+='<div class="job-card cand-card">'
+      +'<div class="job-head"><label class="use-chk"><input type="checkbox" '+(c.use?'checked':'')+' onchange="updCand('+i+',\'use\',this.checked,true)"> 纳入方案</label>'
+      +'<span class="job-dot" style="background:#9aa3b5"></span><b>候选'+(i+1)+'</b>'
+      +'<input placeholder="学生称呼,如:初二数学·李同学" value="'+esc(c.label)+'" oninput="updCand('+i+',\'label\',this.value)">'
+      +'<button class="btn btn-ghost btn-sm" onclick="delCand('+i+')">删除</button></div>'
+      +'<div class="fit '+esc(fit.level)+'">'+fit.text+'</div>'
+      +'<div class="cand-src">原文: '+esc(c.raw)+'</div>'
+      +(c.note?'<div class="cand-src">📋 '+esc(c.note)+'</div>':'')
+      +'<div class="job-fields">'
+      +'<div class="field-row"><label>上课日</label><span class="day-picks">'
+      +[1,2,3,4,5,6,0].map(function(d){return '<label><input type="checkbox" '+(c.days.indexOf(d)>=0?'checked':'')+' onchange="toggleCandDay('+i+','+d+',this.checked)">'+DAY_SHORT[d]+'</label>';}).join('')
+      +'</span></div>'
+      +'<div class="field-row"><label>时间</label><input type="time" value="'+esc(c.start)+'" onchange="updCand('+i+',\'start\',this.value,true)"><span class="muted">~</span><input type="time" value="'+esc(c.end)+'" onchange="updCand('+i+',\'end\',this.value,true)">'
+      +'<select onchange="updCand('+i+',\'payType\',this.value,true)">'
+      +'<option value="hourly"'+(c.payType==='hourly'?' selected':'')+'>元/小时</option>'
+      +'<option value="per"'+(c.payType==='per'?' selected':'')+'>元/次</option>'
+      +'<option value="monthly"'+(c.payType==='monthly'?' selected':'')+'>月薪</option>'
+      +'</select>'
+      +'<input class="amount" type="number" min="0" step="1" placeholder="金额" value="'+esc(c.amount)+'" onchange="updCand('+i+',\'amount\',this.value,true)">'
+      +(c.amountMax?'<span class="muted">~'+esc(c.amountMax)+'</span>':'')+'</div>'
+      +'<div class="field-row"><label>地址</label><input class="addr" placeholder="学生家地址(最好写详细,含区/路/小区)" value="'+esc(c.address)+'" oninput="updCand('+i+',\'address\',this.value)"></div>'
+      +(manOn?'<div class="field-row"><label>到家分钟</label><input class="amount" type="number" min="1" max="240" placeholder="留空=默认'+manHome+'分" value="'+esc(c.homeMin||'')+'" oninput="updCand('+i+',\'homeMin\',this.value)"></div>':'')
+      +'</div></div>';
+  });
+  el('cand-list').innerHTML=html;
+}
+function updCand(i,field,value,re){state.cands[i][field]=value;save();if(re)renderCands();markStale();}
+function toggleCandDay(i,d,checked){
+  var days=state.cands[i].days;
+  var idx=days.indexOf(d);
+  if(checked&&idx<0)days.push(d);
+  if(!checked&&idx>=0)days.splice(idx,1);
+  days.sort(function(a,b){return a-b;});
+  save();renderCands();markStale();
+}
+function delCand(i){state.cands.splice(i,1);save();renderCands();markStale();}
+function clearCandidates(){
+  if(!state.cands.length){toast('没有候选单');return;}
+  if(!confirm('确定清空全部候选单?'))return;
+  state.cands=[];
+  el('rank-list').innerHTML='';
+  save();renderCands();markStale();
+}
+function addCandidates(){
+  var txt=el('cand-raw').value;
+  var parts=splitPostings(txt);
+  if(!parts.length){toast('请先粘贴新单原文');return;}
+  // 新一批单粘贴进来 → 清掉上一批的历史候选与排名,只保留新解析的
+  var oldCount=state.cands.length;
+  if(oldCount){state.cands=[];el('rank-list').innerHTML='';}
+  var added=0;
+  parts.forEach(function(p){
+    var r=parseJobText(p);
+    var c=emptyJob();
+    c.raw=p;
+    if(r.label)c.label=r.label;
+    c.days=r.days||[];
+    if(r.startMin!=null)c.start=fmtTime(r.startMin);
+    if(r.endMin!=null)c.end=fmtTime(r.endMin);
+    else if(r.startMin!=null&&r.durMin)c.end=fmtTime(r.startMin+r.durMin);
+    if(r.durMin!=null)c.durMin=String(r.durMin); // 没写时间时按这个时长自动排时
+    if(r.salary){c.payType=r.salary.type;c.amount=String(r.salary.amount);if(r.salary.amountMax!=null)c.amountMax=String(r.salary.amountMax);}
+    if(r.address)c.address=r.address;
+    if(r.note)c.note=r.note;
+    if(r.timesPerWeek)c.timesPerWeek=String(r.timesPerWeek);
+    c.use=true;
+    state.cands.push(c);
+    added++;
+  });
+  el('cand-raw').value='';
+  save();renderCands();markStale();
+  toast('已解析 '+added+' 个候选单'+(oldCount?('(已清除上一批 '+oldCount+' 个历史候选单)'):''));
+}
+
+/* ================= 智能选单:通勤最短优先、其次薪资 ================= */
+function candidateSessions(c){
+  var tpw=parseInt(c.timesPerWeek,10)||0;
+  if(tpw>0)return tpw;
+  return (c.days&&c.days.length)?c.days.length:1; // 一周几次/上课日都没写 → 按每周1次估
+}
+function estimateWeeklyIncome(c){
+  var a=+c.amount||0;
+  if(!a)return null;
+  var sessions=candidateSessions(c);
+  if(c.payType==='monthly')return a/4.33; // 月薪折算到每周
+  if(c.payType==='per')return a*sessions;
+  var hours=((+c.durMin>0)?+c.durMin:120)/60; // 时薪×每次时长(没写时长按2h估)×每周次数
+  return a*hours*sessions;
+}
+function salaryText(c){
+  if(!+c.amount)return '';
+  var u=c.payType==='monthly'?'元/月':c.payType==='per'?'元/次':'元/小时';
+  return fmtMoney(+c.amount)+(c.amountMax?'~'+fmtMoney(+c.amountMax):'')+u;
+}
+// 排序:每周通勤(往返×次数)最短优先,同样通勤比每周收入;通勤未知(定位/路线失败)的排后面按收入排
+function rankCandsByScore(rows){
+  return rows.slice().sort(function(a,b){
+    if(a.commute==null&&b.commute==null)return (b.income||0)-(a.income||0);
+    if(a.commute==null)return 1;
+    if(b.commute==null)return -1;
+    if(a.commute!==b.commute)return a.commute-b.commute;
+    return (b.income||0)-(a.income||0);
+  });
+}
+function rankCandidates(onProgress){
+  var s=state.settings;
+  var manualOn=!!(s.manual&&s.manual.on);
+  if(!manualOn&&!s.key.trim())return Promise.resolve({err:'请先在「基础设置」填写高德 Web服务 Key(定位和路线都要用),或勾选「手动通勤模式」'});
+  if(!s.home.trim())return Promise.resolve({err:'请先填写「我的住址」'});
+  var list=[];
+  for(var i=0;i<state.cands.length;i++){if(state.cands[i].address.trim())list.push({i:i,c:state.cands[i]});}
+  if(!list.length)return Promise.resolve({err:'候选单都没有地址,无法比较通勤,请先补全地址'});
+  // 手动通勤模式:不调高德,按「到家分钟」估算每周通勤
+  if(manualOn){
+    if(onProgress)onProgress('手动通勤模式:按「到家分钟」估算通勤…');
+    var def=+(s.manual.home)||30;
+    var rowsM=list.map(function(x){
+      var hm=x.c.homeMin?+x.c.homeMin:0;
+      var oneWay=Math.max(5,hm||def);
+      var sessions=candidateSessions(x.c);
+      return {i:x.i,c:x.c,label:x.c.label||('候选'+(x.i+1)),commute:Math.round(oneWay*2*sessions),routeErr:'',income:estimateWeeklyIncome(x.c)};
+    });
+    return Promise.resolve({rows:rowsM});
+  }
+  return geocode(s.home).then(function(home){
+    var rows=[];
+    var done=0;
+    var chain=Promise.resolve();
+    list.forEach(function(x){
+      chain=chain.then(function(){
+        var p=geocode(x.c.address).then(function(g){
+          return routeLeg(home,g,'transit');
+        }).catch(function(e){
+          return {status:'err',err:e&&e.message?e.message:String(e)};
+        });
+        return p.then(function(r){
+          done++;
+          if(onProgress)onProgress('正在比较候选单通勤与薪资 '+done+'/'+list.length+' …');
+          var sessions=candidateSessions(x.c);
+          rows.push({i:x.i,c:x.c,label:x.c.label||('候选'+(x.i+1)),
+            commute:(r&&r.status==='ok')?Math.round(r.dur*2*sessions):null,
+            routeErr:(r&&r.status==='ok')?'':(r&&r.err?r.err:'定位失败'),
+            income:estimateWeeklyIncome(x.c)});
+          return sleep(400); // 逐条查询,间隔400ms避免高德QPS限流
+        });
+      });
+    });
+    return chain.then(function(){return {rows:rows};});
+  });
+}
+function smartPick(){
+  if(!state.cands.length){toast('请先把家教单粘贴到上方文本框并点「解析候选单」');return;}
+  var prog=el('progress');
+  prog.classList.remove('hidden');
+  prog.textContent='正在定位候选单地址…';
+  rankCandidates(function(msg){prog.textContent=msg;}).then(function(res){
+    prog.classList.add('hidden');
+    if(res.err){
+      el('rank-list').innerHTML='<div class="err-item">❌ '+esc(res.err)+'</div>';
+      return;
+    }
+    var ranked=rankCandsByScore(res.rows);
+    var best=ranked[0];
+    // 自动勾选最优单(其余取消勾选),再生成方案
+    state.cands.forEach(function(c,i){c.use=(i===best.i);});
+    save();renderCands();markStale();
+    var html='<div class="sec-title" style="font-size:14px;margin:14px 0 6px">🧠 智能选单结果(通勤最短优先,其次薪资)</div>';
+    ranked.forEach(function(r,pos){
+      var comm=r.commute!=null?fmtDur(r.commute):('通勤未知'+(r.routeErr?'('+esc(r.routeErr)+')':''));
+      var inc=r.income!=null?('每周约¥'+fmtMoney(r.income)):'薪资未填';
+      html+='<div class="chip" style="border-left-color:'+(pos===0?'#30a46c':'#9aa3b5')+'">'
+        +(pos===0?'⭐ 推荐 ':'')+'<b>'+esc(r.label)+'</b> · 每周通勤 '+comm+' · '+inc+' · '+esc(salaryText(r.c))
+        +'</div>';
+    });
+    if(ranked.length>1){
+      html+='<p class="hint">已自动勾选第1名「'+esc(best.label)+'」并生成下方方案(时间没写的单已自动算出最合适时段)。想换别的单,直接在候选卡上重新勾选后点第5步即可。</p>';
+    }
+    el('rank-list').innerHTML=html;
+    toast('已选中最优单,正在生成方案…');
+    runPlan();
+  }).catch(function(e){
+    prog.classList.add('hidden');
+    el('rank-list').innerHTML='<div class="err-item">❌ '+esc(e&&e.message?e.message:String(e))+'</div>';
+  });
+}
+
+// 采用新单:把勾选且已排好时间/日子的候选单转成「已接单」(时间没排好的不会采用)
+function adoptableCands(cands){
+  return cands.filter(function(c){return c.use&&c.start&&c.end&&c.days.length;});
+}
+function adoptCandidates(){
+  var picks=state.cands.filter(function(c){return c.use;});
+  if(!picks.length){toast('没有勾选「纳入方案」的候选单');return;}
+  var ready=adoptableCands(state.cands);
+  if(!ready.length){toast('勾选的候选单还没有排好的时间/日子,请先点「生成行程方案」让程序自动排时');return;}
+  var skipped=picks.length-ready.length;
+  var names=ready.map(function(c){return c.label||('候选'+(state.cands.indexOf(c)+1));}).join('、');
+  var msg='把以下新单填入「已接单」并自动更新方案?\n'+names;
+  if(skipped)msg+='\n(另有 '+skipped+' 个勾选单时间/日子未排好,不会采用)';
+  if(!confirm(msg))return;
+  var keep=[];
+  state.cands.forEach(function(c){
+    if(c.use&&c.start&&c.end&&c.days.length)state.jobs.push(Object.assign(emptyJob(),c));
+    else keep.push(c);
+  });
+  state.cands=keep;
+  el('rank-list').innerHTML='';
+  save();renderJobs();renderCands();markStale();
+  toast('已采用 '+ready.length+' 个新单到「已接单」,正在更新方案…');
+  runPlan();
+}
+
+/* ================= 输入更新 ================= */
+function updSettings(field,value){
+  state.settings[field]=(field==='buffer')?(parseInt(value,10)||0):value;
+  save();markStale();
+}
+function updManual(field,value){
+  var m=state.settings.manual||(state.settings.manual={on:false,home:30,hop:20});
+  if(field==='on'){
+    m.on=!!value;
+    save();markStale();
+    renderSettings();renderJobs();renderCands();
+    return;
+  }
+  m[field]=parseInt(value,10)||0;
+  save();markStale();
+}
+function updFree(d,value){state.free[d]=value;save();markStale();}
+function updJob(i,field,value){state.jobs[i][field]=value;save();markStale();}
+function toggleDay(i,d,checked){
+  var days=state.jobs[i].days;
+  var idx=days.indexOf(d);
+  if(checked&&idx<0)days.push(d);
+  if(!checked&&idx>=0)days.splice(idx,1);
+  days.sort(function(a,b){return a-b;});
+  save();markStale();
+}
+function clearJob(i){
+  state.jobs[i]=emptyJob();
+  save();renderJobs();markStale();
+  toast('已清空 单'+(i+1));
+}
+function clearAllJobs(){
+  if(state.jobs.some(function(j){return j.raw||j.label||j.address;})&&!confirm('确定清空三个家教单的全部内容?'))return;
+  state.jobs=[emptyJob(),emptyJob(),emptyJob()];
+  save();renderJobs();markStale();
+}
+function fillJobFromRaw(i){
+  var raw=state.jobs[i].raw;
+  if(!raw||!raw.trim()){toast('请先粘贴家教单原文再点解析');return;}
+  var r=parseJobText(raw);
+  var j=state.jobs[i];
+  if(r.label&&!j.label)j.label=r.label;
+  j.days=r.days||[];
+  if(r.startMin!=null)j.start=fmtTime(r.startMin);
+  if(r.endMin!=null)j.end=fmtTime(r.endMin);
+  else if(r.startMin!=null&&r.durMin)j.end=fmtTime(r.startMin+r.durMin);
+  if(r.durMin!=null)j.durMin=String(r.durMin);
+  if(r.salary){j.payType=r.salary.type;j.amount=String(r.salary.amount);if(r.salary.amountMax!=null)j.amountMax=String(r.salary.amountMax);}
+  if(r.address)j.address=r.address;
+  if(r.note)j.note=r.note;
+  if(r.timesPerWeek)j.timesPerWeek=String(r.timesPerWeek);
+  save();renderJobs();markStale();
+  var bits=[];
+  if(r.days.length)bits.push(r.days.map(function(d){return DAY_NAMES[d];}).join('、'));
+  if(r.startMin!=null&&(r.endMin!=null||r.durMin!=null))bits.push(fmtTime(r.startMin)+'-'+fmtTime(r.endMin!=null?r.endMin:r.startMin+r.durMin));
+  if(r.salary)bits.push((r.salary.type==='hourly'?'时薪':r.salary.type==='per'?'每次':'月薪')+r.salary.amount+(r.salary.amountMax!=null?'-'+r.salary.amountMax:'')+'元');
+  if(r.timesPerWeek)bits.push('每周'+r.timesPerWeek+'次');
+  if(r.address)bits.push(r.address);
+  toast('已解析: '+(bits.join(' · ')||'没识别出有效信息,请手动填写'));
+}
+function fillSample(){
+  if(state.jobs.some(function(j){return j.raw||j.label;})&&!confirm('将用示例数据覆盖当前三个单,继续?'))return;
+  if(!state.settings.city)state.settings.city=SAMPLE_CITY;
+  if(!state.settings.home)state.settings.home=SAMPLE_HOME;
+  state.jobs=sampleJobsParsed();
+  // 预填空闲时间:周五下午2-6点、周六日早8-晚7(系统自动剔除已接单占用的时间)
+  state.free[0]='08:00-19:00';
+  state.free[5]='14:00-18:00';
+  state.free[6]='08:00-19:00';
+  save();renderSettings();renderJobs();markStale();
+  toast('示例已填入,把三个单换成你自己的即可(住址默认哈尔滨工业大学深圳校区)');
+}
+
+/* ================= 高德 API ================= */
+var jsonpSeq=0;
+function amapJsonp(path,params){
+  return new Promise(function(resolve,reject){
+    var cb='amap_cb_'+(++jsonpSeq)+'_'+Date.now();
+    var script=document.createElement('script');
+    var qs=Object.keys(params).map(function(k){return k+'='+encodeURIComponent(params[k]);}).join('&');
+    var done=false,timer=null;
+    function cleanup(){try{delete window[cb];}catch(e){}if(script.parentNode)script.parentNode.removeChild(script);if(timer)clearTimeout(timer);}
+    timer=setTimeout(function(){if(!done){done=true;cleanup();reject(new Error('请求超时,请检查网络'));}},20000);
+    window[cb]=function(data){
+      if(done)return;
+      done=true;cleanup();
+      if(data&&data.status==='1')resolve(data);
+      else reject(new Error(data&&data.info?data.info:'接口返回异常'));
+    };
+    script.onerror=function(){
+      if(!done){done=true;cleanup();reject(new Error('网络请求失败或接口不支持浏览器调用(可尝试:换系统自带浏览器、关闭省流/广告拦截,或勾选「手动通勤模式」)'));}
+    };
+    script.src=AMAP_BASE+path+'?'+qs+'&callback='+cb;
+    document.head.appendChild(script);
+  });
+}
+
+function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
+// 高德个人 Key 有每秒请求次数限制,撞到 QPS 限流时等 1.5 秒自动重试一次
+function withQpsRetry(fn){
+  return fn().catch(function(e){
+    var msg=e&&e.message?e.message:String(e);
+    if(/CUQPS|QPS|10021/.test(msg))return sleep(1500).then(fn);
+    throw e;
+  });
+}
+
+function geocode(addr){
+  var city=state.settings.city||'';
+  var key=state.settings.key;
+  var ck='geo|'+city+'|'+String(addr).trim();
+  if(state.geoCache[ck])return Promise.resolve(state.geoCache[ck]);
+  return withQpsRetry(function(){
+    return amapJsonp('v3/geocode/geo',{key:key,address:String(addr).trim(),city:city});
+  }).then(function(data){
+    if(!data.geocodes||!data.geocodes.length)throw new Error('未找到该地址');
+    var g=data.geocodes[0];
+    var res={lng:g.location.split(',')[0],lat:g.location.split(',')[1],formatted:g.formatted_address};
+    state.geoCache[ck]=res;save();
+    return res;
+  });
+}
+
+function haversineKm(a,b){
+  var R=6371,dLat=(b.lat-a.lat)*Math.PI/180,dLng=(b.lng-a.lng)*Math.PI/180;
+  var h=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)*Math.sin(dLng/2);
+  return 2*R*Math.asin(Math.sqrt(h));
+}
+
+function routeLeg(a,b,mode){
+  var key=state.settings.key;
+  var ck=mode+'|'+a.lng+','+a.lat+'|'+b.lng+','+b.lat;
+  if(state.routeCache[ck])return Promise.resolve(state.routeCache[ck]);
+  return withQpsRetry(function(){
+    return amapJsonp('v3/direction/transit/integrated',{key:key,origin:a.lng+','+a.lat,destination:b.lng+','+b.lat,city:state.settings.city,strategy:0});
+  }).then(function(data){
+    // 只保留纯地铁方案:每个乘车段都有类型为"地铁线路"的线路,步行接驳段不计。
+    // 注意必须看 type 字段——公交线路名常含"地铁"字样(如"XX地铁公交接驳站"),看名字会误判。
+    var transits=(data.route&&data.route.transits)||[];
+    var metro=transits.filter(function(t){
+      var rides=(t.segments||[]).filter(function(seg){return seg.bus&&seg.bus.buslines&&seg.bus.buslines.length;});
+      return rides.length>0&&rides.every(function(seg){
+        return seg.bus.buslines.some(function(bl){return (bl.type||'').indexOf('地铁')>=0;});
+      });
+    }).sort(function(x,y){return x.duration-y.duration;});
+    var p=metro[0];
+    if(p){
+      var res={status:'ok',dur:Math.round(p.duration/60),distM:Math.round(+p.distance),cost:(p.cost!=null?+p.cost:null)};
+      state.routeCache[ck]=res;save();
+      return res;
+    }
+    // 无纯地铁方案:距离很近(直线≤2.5km)时按步行处理,用步行接口取真实时间
+    var dKm=haversineKm(a,b);
+    if(dKm<=2.5){
+      return withQpsRetry(function(){
+        return amapJsonp('v3/direction/walking',{key:key,origin:a.lng+','+a.lat,destination:b.lng+','+b.lat});
+      }).then(function(wd){
+        var wp=wd.route&&wd.route.paths&&wd.route.paths[0];
+        var wres=wp
+          ?{status:'ok',dur:Math.max(5,Math.round(wp.duration/60)),distM:Math.round(+wp.distance),cost:null,walkFallback:true}
+          :{status:'ok',dur:Math.max(5,Math.round(dKm*15)),distM:Math.round(dKm*1000),cost:null,walkFallback:true};
+        state.routeCache[ck]=wres;save();
+        return wres;
+      }).catch(function(){
+        var wres={status:'ok',dur:Math.max(5,Math.round(dKm*15)),distM:Math.round(dKm*1000),cost:null,walkFallback:true};
+        state.routeCache[ck]=wres;save();
+        return wres;
+      });
+    }
+    throw new Error('无纯地铁方案(需乘公交,已按"只地铁"要求跳过)');
+  }).catch(function(e){
+    var res={status:'err',err:e&&e.message?e.message:String(e)};
+    state.routeCache[ck]=res;save();
+    return res;
+  });
+}
+
+// 手动通勤模式:家↔单用该单「到家分钟」或全局默认,单↔单用转场默认分钟(不调用高德)
+function manualLegMin(from,to,byId){
+  var m=(state.settings&&state.settings.manual)||{};
+  if(from==='home'||to==='home'){
+    var j=(from==='home')?byId[to]:byId[from];
+    var hm=j&&j.homeMin?+j.homeMin:0;
+    return Math.max(5,hm||(+m.home||30));
+  }
+  return Math.max(5,(+m.hop||20));
+}
+
+/* ================= 方案引擎 ================= */
+function validate(){
+  var errs=[];
+  var s=state.settings;
+  var manualOn=!!(s.manual&&s.manual.on);
+  if(!manualOn&&!s.key.trim())errs.push('请填写高德 Web服务 Key,或勾选「手动通勤模式」(免费申请,见第1步说明)');
+  if(!s.home.trim())errs.push('请填写「我的住址」');
+  if(!manualOn&&!s.city.trim())errs.push('请填写「所在城市」(定位地址和公交查询都要用)');
+  var usedModes={};usedModes[s.mode]=1;
+  Object.keys(state.legMode).forEach(function(k){usedModes[state.legMode[k]]=1;});
+  if(!manualOn&&usedModes.transit&&!s.city.trim())errs.push('地铁线路查询需要填写城市');
+  var validJobs=[];
+  var all=state.jobs.concat(state.cands.filter(function(c){return c.use;}));
+  all.forEach(function(j,idx){
+    if(!j.raw.trim()&&!j.address.trim()&&!j.label.trim())return; // 空卡片跳过
+    var je=[];
+    var st=timeToMin(j.start),en=timeToMin(j.end);
+    var untimed=st==null&&en==null; // 候选单没写时间 = 交给系统自动排时
+    if(idx<state.jobs.length){
+      // 已接单:时间必须完整(系统只做±1小时微调)
+      if(!j.days.length)je.push('未选择上课日');
+      if(untimed)je.push('时间不完整');
+      else if(en<=st)je.push('结束时间必须晚于开始时间');
+    }else{
+      if(!untimed&&(st==null||en==null))je.push('时间不完整');
+      else if(!untimed&&en<=st)je.push('结束时间必须晚于开始时间');
+    }
+    if(!j.address.trim())je.push('地址缺失');
+    if(je.length)errs.push(jobTitle(idx,j)+': '+je.join('、'));
+    else validJobs.push({idx:idx,j:j,start:st,end:en,days:j.days,untimed:untimed});
+  });
+  if(!validJobs.length&&!state.jobs.some(function(j){return j.raw||j.address||j.label;})&&!state.cands.some(function(j){return j.raw||j.address||j.label;}))errs.push('请至少填写一个家教单');
+  return {errs:errs,validJobs:validJobs};
+}
+
+function calcPay(j,st,en){
+  if(j.payType==='monthly')return null;
+  var a=+j.amount||0;
+  if(!a)return null; // 没填金额就不算收入
+  return j.payType==='per'?a:a*(en-st)/60;
+}
+
+function legModeOf(from,to){return 'transit';} // 只坐地铁
+
+function legStep(leg,from,to,depart,arrive){
+  return {type:'leg',key:from+'|'+to,from:from,to:to,leg:leg,depart:depart,arrive:arrive};
+}
+
+function planDay(d,ss,legs,settings,conflicts){
+  var buf=+settings.buffer||10;
+  var home='home';
+  var steps=[];
+  var travelMin=0,distM=0;
+
+  function locId(jobIdx){return 'j'+jobIdx;}
+
+  // 第一段: 家 → 第一家
+  var first=legs[home+'|'+locId(ss[0].jobIdx)];
+  var arrive1=ss[0].start-buf;
+  var depart1=first&&first.status==='ok'?arrive1-first.dur:null;
+  if(first&&first.status==='ok'){travelMin+=first.dur;distM+=first.distM;}
+  else if(first)conflicts.push({level:'yellow',text:DAY_NAMES[d]+':从家到'+ss[0].label+'的路线查询失败'+(first.err?'('+first.err+')':'')+'。'});
+  steps.push(legStep(first,home,locId(ss[0].jobIdx),depart1,depart1!=null?arrive1:null));
+  if(depart1!=null&&depart1<360)conflicts.push({level:'orange',text:DAY_NAMES[d]+' 需在 '+fmtTime(depart1)+' 就出发(早于6点),太早了'});
+  else if(depart1!=null&&depart1<480)conflicts.push({level:'orange',text:DAY_NAMES[d]+' 需在 '+fmtTime(depart1)+' 就出发(早于8点),超出正常作息'});
+
+  for(var i=0;i<ss.length;i++){
+    var s=ss[i];
+    var A=locId(s.jobIdx);
+    steps.push({type:'session',jobIdx:s.jobIdx,label:s.label,start:s.start,end:s.end,pay:s.pay,origStart:s.origStart,origEnd:s.origEnd});
+    var next=ss[i+1];
+    if(!next){
+      // 最后一段: 回家
+      var back=legs[A+'|'+home];
+      if(back&&back.status==='ok'){travelMin+=back.dur;distM+=back.distM;}
+      else if(back)conflicts.push({level:'yellow',text:DAY_NAMES[d]+':'+s.label+'下课回家的路线查询失败'+(back.err?'('+back.err+')':'')+'。'});
+      steps.push(legStep(back,A,home,s.end,back&&back.status==='ok'?s.end+back.dur:null));
+      if(back&&back.status==='ok'&&s.end+back.dur>1140)conflicts.push({level:'orange',text:DAY_NAMES[d]+':'+s.label+' 下课后到家已是 '+fmtTime(s.end+back.dur)+'(晚于19点),看看能否与家长协商提前'});
+      continue;
+    }
+    var B=locId(next.jobIdx);
+    if(next.start<s.end){
+      conflicts.push({level:'red',text:DAY_NAMES[d]+':'+s.label+' '+fmtTime(s.start)+'-'+fmtTime(s.end)+' 与 '+next.label+' '+fmtTime(next.start)+'-'+fmtTime(next.end)+' 时间重叠,没法同一天都上'});
+      steps.push({type:'note',level:'red',text:'⚠ 两节课时间重叠,请与家长协商改期'});
+      continue;
+    }
+    var gap=next.start-s.end;
+    var direct=legs[A+'|'+B];
+    var h1=legs[A+'|'+home],h2=legs[home+'|'+B];
+    var dOk=direct&&direct.status==='ok';
+    var vOk=h1&&h1.status==='ok'&&h2&&h2.status==='ok';
+    var dNeed=dOk?direct.dur+buf:null;
+    var vNeed=vOk?h1.dur+h2.dur+buf:null;
+    var dF=dOk&&dNeed<=gap;
+    var vF=vOk&&vNeed<=gap;
+    var directWait=dF?gap-dNeed:null;
+    var viaRest=vF?gap-vNeed:null;
+    var choice;
+    if(!dOk&&!vOk){
+      choice='direct';
+      conflicts.push({level:'yellow',text:DAY_NAMES[d]+':'+s.label+'→'+next.label+' 直连和回家两条路线都查询失败('+(direct&&direct.err?direct.err:'')+'),无法判断衔接,请检查Key/网络后点「清除路线缓存重查」'});
+    }else if(!dF&&!vF){
+      choice='direct';
+      var needMin=dOk?dNeed:vNeed;
+      conflicts.push({level:'red',text:DAY_NAMES[d]+':'+s.label+'下课('+fmtTime(s.end)+')到'+next.label+'上课('+fmtTime(next.start)+')只有'+fmtDur(gap)+',路上需要'+fmtDur(needMin)+'——赶不上,需提前离开或与家长协商调整时间'});
+    }else if(vF&&(!dF
+      ||(h1.dur+h2.dur)<direct.dur
+      ||((h1.dur+h2.dur)===direct.dur&&viaRest>=30)
+      ||(directWait>=90&&viaRest>=60))){
+      choice='viaHome';
+      if(!dOk)conflicts.push({level:'yellow',text:DAY_NAMES[d]+':'+s.label+'→'+next.label+' 直接路线查询失败('+(direct&&direct.err?direct.err:'')+'),已改用「先回家再出发」'});
+    }else{
+      choice='direct';
+      if(directWait!=null&&directWait>=1&&directWait<15){
+        conflicts.push({level:'orange',text:DAY_NAMES[d]+':'+s.label+'到'+next.label+'时间很紧,只多出'+fmtDur(directWait)+'分钟缓冲,建议与家长协商留足余量'});
+      }
+    }
+    if(choice==='viaHome'){
+      var dep1=s.end;
+      if(h1&&h1.status==='ok'){travelMin+=h1.dur;distM+=h1.distM;}
+      steps.push(legStep(h1,A,home,dep1,h1&&h1.status==='ok'?dep1+h1.dur:null));
+      if(viaRest!=null&&viaRest>=5)steps.push({type:'rest',home:true,minutes:viaRest});
+      if(viaRest!=null&&viaRest>=1&&viaRest<15){
+        conflicts.push({level:'orange',text:DAY_NAMES[d]+':'+s.label+'到'+next.label+'先回家再出发,到家后只多出'+fmtDur(viaRest)+'分钟缓冲,建议与家长协商留足余量'});
+      }
+      var dep2=next.start-buf-(h2&&h2.status==='ok'?h2.dur:0);
+      if(h2&&h2.status==='ok'){travelMin+=h2.dur;distM+=h2.distM;}
+      steps.push(legStep(h2,home,B,dep2,h2&&h2.status==='ok'?dep2+h2.dur:null));
+    }else{
+      if(dOk){travelMin+=direct.dur;distM+=direct.distM;}
+      steps.push(legStep(direct,A,B,s.end,dOk?s.end+direct.dur:null));
+      if(directWait!=null&&directWait>=15)steps.push({type:'rest',home:false,minutes:directWait});
+    }
+  }
+  return {steps:steps,travelMin:travelMin,distM:distM};
+}
+
+/* ================= 排时优化:未定时候选单自动安排 + 已接单±1小时微调 ================= */
+function permutations(arr){
+  if(arr.length<=1)return [arr];
+  var res=[];
+  for(var i=0;i<arr.length;i++){
+    var rest=arr.slice(0,i).concat(arr.slice(i+1));
+    permutations(rest).forEach(function(p){res.push([arr[i]].concat(p));});
+  }
+  return res;
+}
+// jobs: [{idx,j,start,end,days,untimed,label,adjustable,flexible,dur,pay}],start/end 为分钟(null=未定)
+// legs: 路线结果表 {'home|j0':{status,dur,...}}。空闲时段取 state.free,自动剔除已排课占用。
+// 返回 {sessions:{day:[sess]},shifts:[{idx,label,delta,origStart,origEnd,start,end}],placements:[{idx,label,start,end,days}],notes:[],total} 或 null(偏移组合全冲突)
+function optimizeSchedule(jobs,legs,s){
+  var buf=+s.buffer||10;
+  var free=state.free.map(parseFreeRanges);
+  var adjustable=jobs.filter(function(v){return v.adjustable;});
+  var fixed=jobs.filter(function(v){return !v.adjustable&&!v.flexible;});
+  var flex=jobs.filter(function(v){return v.flexible;});
+  var WORK_START=480,WORK_END=1140,SLACK_MIN=15; // 正常作息8:00-19:00;课间预留 = 两单地址之间的通勤时间 + 15分钟
+  var kindOf={}; // 按可调整性分类:已接单=adj(可±1h)、定时候选=fixed(家长给定,动不了)、未定时候选=flex
+  adjustable.forEach(function(v){kindOf[v.idx]='adj';});
+  fixed.forEach(function(v){kindOf[v.idx]='fixed';});
+  flex.forEach(function(v){kindOf[v.idx]='flex';});
+  function inWindows(d,st,en){
+    var r=free[d];
+    if(!r.length)return true; // 该天没填空闲 = 不约束
+    return r.some(function(rr){return st>=rr[0]&&en<=rr[1];});
+  }
+  function overlap(a,b){return a.start<b.end&&a.end>b.start;}
+  function sessOf(v,st,en){return {jobIdx:v.idx,label:v.label,start:st,end:en,pay:v.pay};}
+  function byStart(a,b){return a.start-b.start;}
+  function dayEval(d,list){ // list 按时间排序;违反正常作息/课间余量/红色冲突 = 不可行
+    var cf=[];
+    for(var i=0;i<list.length;i++){
+      // 上课时间必须落在 8:00-19:00(家长给定时间的固定单超作息只警示,不否定整个方案)
+      if(kindOf[list[i].jobIdx]==='fixed')continue;
+      if(list[i].start<WORK_START||list[i].end>WORK_END)return {travel:0,valid:false};
+    }
+    // 出门(第一段通勤)不能早于 8:00(第一节课是家长给定时间的固定单时不限制)
+    var firstLeg=legs['home|j'+list[0].jobIdx];
+    if(kindOf[list[0].jobIdx]!=='fixed'&&firstLeg&&firstLeg.status==='ok'&&list[0].start-buf-firstLeg.dur<WORK_START)return {travel:0,valid:false};
+    // 课与课之间的预留时间 = 两单地址之间的通勤时间 + 15分钟(直连路线查不到时退回"先回家再出发"折算)
+    for(var k=0;k<list.length-1;k++){
+      var a=list[k],b=list[k+1];
+      var direct=legs['j'+a.jobIdx+'|j'+b.jobIdx],h1=legs['j'+a.jobIdx+'|home'],h2=legs['home|j'+b.jobIdx];
+      var gap=b.start-a.end,commute=null;
+      if(direct&&direct.status==='ok')commute=direct.dur;
+      else if(h1&&h1.status==='ok'&&h2&&h2.status==='ok')commute=h1.dur+h2.dur;
+      if(commute==null||gap-commute<SLACK_MIN)return {travel:0,valid:false};
+    }
+    // 到家不能比 19:00 晚太多(留15分钟弹性;最后一节是家长给定时间的固定单时不限制)
+    var lastLeg=legs['j'+list[list.length-1].jobIdx+'|home'];
+    if(kindOf[list[list.length-1].jobIdx]!=='fixed'&&lastLeg&&lastLeg.status==='ok'&&list[list.length-1].end+lastLeg.dur>WORK_END+15)return {travel:0,valid:false};
+    var pd=planDay(d,list,legs,s,cf);
+    var red=cf.some(function(c){return c.level==='red';});
+    return {travel:pd.travelMin,valid:!red};
+  }
+  // 1) 枚举已接单偏移组合(-60..+60分钟,步长10)
+  var opts=[];
+  for(var d=-60;d<=60;d+=10)opts.push(d);
+  var combos=[[]];
+  adjustable.forEach(function(){
+    var next=[];
+    combos.forEach(function(c){
+      opts.forEach(function(o){next.push(c.concat([o]));});
+    });
+    combos=next;
+  });
+  // 2) 先只算"定时课"的通勤,保留最好的前20个偏移组合
+  var scored=[];
+  combos.forEach(function(combo){
+    var timed={};
+    var ok=true;
+    adjustable.forEach(function(v,vi){
+      var st=v.start+combo[vi],en=v.end+combo[vi];
+      v.days.forEach(function(dd){
+        if(!ok)return;
+        if(!inWindows(dd,st,en)){ok=false;return;}
+        var ss=sessOf(v,st,en);
+        ss.origStart=v.start;ss.origEnd=v.end;ss.delta=combo[vi];
+        var list=timed[dd]=timed[dd]||[];
+        if(list.some(function(x){return overlap(x,ss);})){ok=false;return;}
+        list.push(ss);
+      });
+    });
+    if(!ok)return;
+    fixed.forEach(function(v){
+      v.days.forEach(function(dd){
+        if(!ok)return;
+        var ss=sessOf(v,v.start,v.end);
+        var list=timed[dd]=timed[dd]||[];
+        if(list.some(function(x){return overlap(x,ss);})){ok=false;return;}
+        list.push(ss);
+      });
+    });
+    if(!ok)return;
+    var travel=0,valid=true;
+    Object.keys(timed).forEach(function(dd){
+      timed[dd].sort(byStart);
+      var r=dayEval(+dd,timed[dd]);
+      if(!r.valid){valid=false;return;}
+      travel+=r.travel;
+    });
+    if(!valid)return;
+    var disrupt=combo.reduce(function(a,b){return a+Math.abs(b);},0);
+    scored.push({combo:combo,timed:timed,travel:travel,disrupt:disrupt});
+  });
+  if(!scored.length){
+    // 定时课本身互相冲突(家长给定的时间动不了):不放弃,按原时间全部保留,继续给未定时候选找位置(冲突在上层按红色提示)
+    var timed2={};
+    adjustable.forEach(function(v){v.days.forEach(function(dd){(timed2[dd]=timed2[dd]||[]).push(sessOf(v,v.start,v.end));});});
+    fixed.forEach(function(v){v.days.forEach(function(dd){(timed2[dd]=timed2[dd]||[]).push(sessOf(v,v.start,v.end));});});
+    scored=[{combo:adjustable.map(function(){return 0;}),timed:timed2,travel:0,disrupt:0}];
+  }
+  scored.sort(function(a,b){return a.travel-b.travel||a.disrupt-b.disrupt;});
+  scored=scored.slice(0,20);
+  // 3) 对每个保留组合,把未定时候选放进剩余空隙;候选≤3个时枚举全排列,取总通勤最小
+  function combosOf(arr,n){ // 从数组里取 n 个元素的所有组合(顺序无关)
+    if(n<=0)return [];
+    if(n===1)return arr.map(function(x){return [x];});
+    var res=[];
+    (function rec(start,acc){
+      if(acc.length===n){res.push(acc.slice());return;}
+      for(var i=start;i<=arr.length-(n-acc.length);i++){acc.push(arr[i]);rec(i+1,acc);acc.pop();}
+    })(0,[]);
+    return res;
+  }
+  var best=null;
+  scored.forEach(function(sc){
+    var orders=flex.length>3?[flex.slice().sort(function(a,b){return (b.days.length-a.days.length)||(b.dur-a.dur);})]:permutations(flex);
+    orders.forEach(function(order){
+      var cur={};
+      Object.keys(sc.timed).forEach(function(dd){cur[dd]=sc.timed[dd].slice();});
+      var added=0,placements=[],skipped=[];
+      for(var ci=0;ci<order.length;ci++){
+        var c=order[ci];
+        // 上课日:勾选了就用勾选的(各天同一时间);没勾选=系统挑最佳单天;一周N次=挑 N 个空闲日(各天同时段)
+        var freeDays=[0,1,2,3,4,5,6].filter(function(dd){return free[dd].length;});
+        var dayOpts;
+        if(c.days.length)dayOpts=[c.days.slice()];
+        else if(c.timesPerWeek>1)dayOpts=c.timesPerWeek<=freeDays.length?combosOf(freeDays,c.timesPerWeek):[]; // 空闲日不够 N 天 → 放不下
+        else dayOpts=freeDays.map(function(dd){return [dd];});
+        var bestT=null;
+        dayOpts.forEach(function(days){
+          var base={};
+          days.forEach(function(dd){base[dd]=(cur[dd]||[]).length?dayEval(dd,(cur[dd]||[]).slice().sort(byStart)).travel:0;});
+          for(var t=0;t<1440;t+=10){
+            var en=t+c.dur;
+            var delta=0,okT=true;
+            for(var i=0;i<days.length;i++){
+              var dd=days[i];
+              if(!inWindows(dd,t,en)){okT=false;break;}
+              var ss=sessOf(c,t,en);
+              var list=(cur[dd]||[]).concat([ss]).sort(byStart);
+              var bad=false;
+              for(var k=0;k<list.length-1;k++)if(overlap(list[k],list[k+1])){bad=true;break;}
+              if(bad){okT=false;break;}
+              var r=dayEval(dd,list);
+              if(!r.valid){okT=false;break;}
+              delta+=r.travel-base[dd];
+            }
+            if(okT&&(bestT==null||delta<bestT.delta||(delta===bestT.delta&&t<bestT.t)))bestT={t:t,delta:delta,days:days};
+          }
+        });
+        if(bestT==null){skipped.push(c);continue;} // 这个候选放不下:跳过,继续排后面的
+        var en=bestT.t+c.dur;
+        bestT.days.forEach(function(dd){
+          cur[dd]=(cur[dd]||[]).concat([sessOf(c,bestT.t,en)]).sort(byStart);
+        });
+        added+=bestT.delta;
+        placements.push({idx:c.idx,label:c.label,start:bestT.t,end:en,days:bestT.days.slice()});
+      }
+      var total=sc.travel+added;
+      var placedCount=placements.length;
+      // 优先多排下候选,其次通勤最短,最后偏移最小
+      if(best==null||placedCount>best.placed||(placedCount===best.placed&&total<best.total)||(placedCount===best.placed&&total===best.total&&sc.disrupt<best.disrupt))best={total:total,placed:placedCount,sc:sc,cur:cur,placements:placements,skipped:skipped.slice()};
+    });
+  });
+  if(!best)return {sessions:null,shifts:[],placements:[],notes:[],total:0};
+  var sessions={};
+  Object.keys(best.cur).forEach(function(dd){sessions[dd]=best.cur[dd];});
+  var shifts=[];
+  adjustable.forEach(function(v,vi){
+    var dlt=best.sc.combo[vi];
+    if(dlt)shifts.push({idx:v.idx,label:v.label,delta:dlt,origStart:v.start,origEnd:v.end,start:v.start+dlt,end:v.end+dlt});
+  });
+  var notes=(best.skipped||[]).map(function(c){
+    return {level:'orange',text:'候选 '+c.label+' 时长'+fmtDur(c.dur)+',在空闲时段里放不下(或衔接通勤来不及),建议与家长协商改时长/时间'};
+  });
+  return {sessions:sessions,shifts:shifts,placements:best.placements,notes:notes,total:best.total};
+}
+
+function buildPlan(onProgress){
+  var v=validate();
+  if(v.errs.length)return Promise.resolve({fatal:v.errs});
+  var s=state.settings;
+  var geo={home:null};
+  var geoErrors=[];
+
+  return (function(){
+    var jobs=v.validJobs;
+    var step=1,total=1+jobs.length;
+    // 手动通勤模式:不调高德,直接按填写分钟数构造路线
+    if(s.manual&&s.manual.on){
+      onProgress('手动通勤模式:按填写分钟数计算(不调用高德)…');
+      var byId={'home':null};
+      jobs.forEach(function(vj){byId['j'+vj.idx]=vj.j;});
+      var mres={};
+      for(var a2=0;a2<=jobs.length;a2++){
+        for(var b2=0;b2<=jobs.length;b2++){
+          if(a2===b2)continue;
+          var mf=(a2===0?'home':'j'+jobs[a2-1].idx),mt=(b2===0?'home':'j'+jobs[b2-1].idx),mk=mf+'|'+mt;
+          mres[mk]={status:'ok',dur:manualLegMin(mf,mt,byId),distM:0,cost:null,manual:true,mode:legModeOf(mf,mt)};
+        }
+      }
+      return finalizePlan(jobs,mres,[],geo);
+    }
+    onProgress('正在定位地址 1/'+total+' …');
+    return geocode(s.home).then(function(g){
+      geo.home=g;step++;
+      onProgress('正在定位地址 '+step+'/'+total+' …');
+    }).catch(function(e){
+      step++;
+      geoErrors.push({label:'我家',addr:s.home,err:e.message});
+    }).then(function(){
+      // 逐个定位(间隔400ms,避免触发高德QPS限流)
+      var chain2=Promise.resolve();
+      jobs.forEach(function(vj){
+        chain2=chain2.then(function(){
+          return geocode(vj.j.address).then(function(g){
+            geo['j'+vj.idx]=g;step++;
+            onProgress('正在定位地址 '+step+'/'+total+' …');
+          }).catch(function(e){
+            step++;
+            geoErrors.push({label:jobTitle(vj.idx,vj.j),addr:vj.j.address,err:e.message});
+          }).then(function(){return sleep(400);});
+        });
+      });
+      return chain2;
+    }).then(function(){
+      if(!geo.home)return {fatal:geoErrors.length?geoErrors.map(function(g){return '「'+g.label+'」地址定位失败: '+g.err+'。请把地址写详细些(含区/路/小区),并检查城市是否正确。';}):['无法定位住址,请检查地址与城市']};
+      // 未定时候选单会被排时优化挪位置,所以把所有"地点对"的路线都查一遍(二次生成走缓存,很快)
+      var home='home',need=[];
+      for(var a=0;a<=jobs.length;a++){
+        for(var b=0;b<=jobs.length;b++){
+          if(a===b)continue;
+          need.push([a===0?home:'j'+jobs[a-1].idx,b===0?home:'j'+jobs[b-1].idx]);
+        }
+      }
+      // 查询路线(逐条查询,间隔400ms,避免触发高德QPS限流)
+      var results={};
+      var done=0;
+      var chain=Promise.resolve();
+      need.forEach(function(L){
+        chain=chain.then(function(){
+          var f=L[0],t=L[1],mode=legModeOf(f,t),k=f+'|'+t;
+          var gA=geo[f],gB=geo[t];
+          var p;
+          if(!gA||!gB)p=Promise.resolve({status:'err',err:'地址定位失败',mode:mode});
+          else if(mode==='transit'&&!s.city)p=Promise.resolve({status:'err',err:'公交路线需要城市',mode:mode});
+          else p=routeLeg(gA,gB,mode).then(function(r){r.mode=mode;return r;},function(e){return {status:'err',err:e&&e.message?e.message:String(e),mode:mode};}); // 单条腿失败不拖垮整个规划
+          return p.then(function(r){
+            results[k]=r;
+            done++;onProgress('正在查询路线 '+done+'/'+need.length+' …');
+            return sleep(400);
+          });
+        });
+      });
+      return chain.then(function(){
+        var conflicts=geoErrors.map(function(g){return {level:'yellow',text:'「'+g.label+'」定位失败('+g.err+'),该地址相关的路线无法计算,请检查地址和城市'};});
+        return finalizePlan(jobs,results,conflicts,geo);
+      });
+    });
+  })();
+}
+// 排时+逐天规划+统计:在线查询或手动构造的路线结果统一在这里处理
+function finalizePlan(jobs,results,conflicts,geo){
+  var s=state.settings;
+  // 排时优化:已接单±1小时微调 + 未定时候选自动安排(以整周通勤最短为目标,空闲时段自动剔除已接单占用)
+  var optJobs=jobs.map(function(vj){
+          var dur=vj.untimed?((+vj.j.durMin>0)?+vj.j.durMin:120):(vj.end-vj.start);
+          return {idx:vj.idx,j:vj.j,start:vj.start,end:vj.end,days:vj.days,untimed:vj.untimed,
+            label:jobTitle(vj.idx,vj.j),
+            adjustable:vj.idx<state.jobs.length,
+            flexible:vj.untimed,
+            dur:dur,
+            timesPerWeek:parseInt(vj.j.timesPerWeek,10)||0,
+            pay:vj.untimed?calcPay(vj.j,0,dur):calcPay(vj.j,vj.start,vj.end)};
+        });
+        var byDay={};
+        var opt=optimizeSchedule(optJobs,results,s);
+        if(opt&&opt.sessions){
+          byDay=opt.sessions;
+          opt.shifts.forEach(function(sh){
+            conflicts.push({level:'green',text:'💡 建议与家长协商:'+sh.label+' 时间改为 '+fmtTime(sh.start)+'-'+fmtTime(sh.end)+'(原 '+fmtTime(sh.origStart)+'-'+fmtTime(sh.origEnd)+'),整体通勤更短'});
+          });
+          opt.placements.forEach(function(p){
+            conflicts.push({level:'green',text:'📌 '+p.label+' 已自动安排 '+p.days.map(function(d){return DAY_NAMES[d];}).join('、')+' '+fmtTime(p.start)+'-'+fmtTime(p.end)});
+            // 建议时间回写进候选卡片(下次生成当作已定时间;卡片里的已接单原始时间不动)
+            var c=state.cands[p.idx-state.jobs.length];
+            if(c){c.start=fmtTime(p.start);c.end=fmtTime(p.end);c.days=p.days.slice();}
+          });
+          if(opt.placements.length){save();renderCands();}
+          if(opt.notes)conflicts=conflicts.concat(opt.notes); // 放不下的候选也要给橙色提示
+        }else{
+          if(opt&&opt.notes)conflicts=conflicts.concat(opt.notes);
+          // 整体优化不可行(偏移组合全冲突):按原时间规划,未定时候选不进方案
+          jobs.forEach(function(vj){
+            if(vj.untimed){
+              if(!opt)conflicts.push({level:'orange',text:jobTitle(vj.idx,vj.j)+' 未定时间,但已接单时间互相冲突,暂时无法自动安排;请先解决冲突'});
+              return;
+            }
+            vj.days.forEach(function(d){
+              (byDay[d]=byDay[d]||[]).push({jobIdx:vj.idx,label:jobTitle(vj.idx,vj.j),start:vj.start,end:vj.end,pay:calcPay(vj.j,vj.start,vj.end)});
+            });
+          });
+        }
+        var dayIdxs=Object.keys(byDay).map(Number).sort(function(a,b){return a-b;});
+        dayIdxs.forEach(function(d){byDay[d].sort(function(a,b){return a.start-b.start;});});
+        // 逐天规划
+        var dayPlans={};
+        dayIdxs.forEach(function(d){
+          var s2=byDay[d];
+          dayPlans[d]=planDay(d,s2,results,s,conflicts);
+          dayPlans[d].sessions=s2;
+        });
+        // 空闲时间检查
+        var free=state.free.map(parseFreeRanges);
+        var freeUsed=free.some(function(r){return r.length>0;});
+        if(freeUsed){
+          dayIdxs.forEach(function(d){
+            var ranges=free[d];
+            // 只检查填了空闲时间的天;没填视为"未约束",不提醒
+            if(!ranges.length)return;
+            byDay[d].forEach(function(s3){
+              if(!ranges.some(function(r){return s3.start>=r[0]&&s3.end<=r[1];})){
+                conflicts.push({level:'orange',text:DAY_NAMES[d]+' '+s3.label+' '+fmtTime(s3.start)+'-'+fmtTime(s3.end)+' 不在你填的空闲时间段内'});
+              }
+            });
+          });
+        }
+        // 统计(收入按最终排好的时间算,自动排时的候选按排好的时长计)
+        var sessionPerWeek=dayIdxs.reduce(function(n2,d){return n2+byDay[d].length;},0);
+        var weeklyIncome=0,monthlyList=[],incomeDetail=[];
+        Object.keys(byDay).forEach(function(d){
+          byDay[d].forEach(function(ss){
+            if(ss.pay!=null){weeklyIncome+=ss.pay;incomeDetail.push(ss.label+' ¥'+fmtMoney(ss.pay)+'/周');}
+          });
+        });
+        jobs.forEach(function(vj){
+          if(vj.j.payType==='monthly'&&+vj.j.amount>0)monthlyList.push(jobTitle(vj.idx,vj.j)+' 月薪'+fmtMoney(+vj.j.amount)+'元');
+        });
+        var weeklyTravelMin=0,weeklyDistM=0;
+        dayIdxs.forEach(function(d){weeklyTravelMin+=dayPlans[d].travelMin;weeklyDistM+=dayPlans[d].distM;});
+        var monthlyTotal=0;
+        jobs.forEach(function(vj){if(vj.j.payType==='monthly')monthlyTotal+=+vj.j.amount||0;});
+        var stats={
+          sessionPerWeek:sessionPerWeek,
+          weeklyIncome:weeklyIncome,
+          incomeDetail:incomeDetail,
+          monthlyList:monthlyList,
+          monthlyTotal:monthlyTotal,
+          weeklyTravelMin:weeklyTravelMin,
+          weeklyDistM:weeklyDistM
+        };
+  return {dayIdxs:dayIdxs,byDay:byDay,dayPlans:dayPlans,conflicts:conflicts,stats:stats,geo:geo};
+}
+
+/* ================= 结果渲染 ================= */
+function locName(id){
+  if(id==='home')return '我家';
+  var idx=parseInt(id.slice(1),10);
+  var j=idx<state.jobs.length?state.jobs[idx]:state.cands[idx-state.jobs.length];
+  return (j&&j.label)||jobTitle(idx,null);
+}
+function locAddr(id){
+  if(id==='home')return state.settings.home;
+  var idx=parseInt(id.slice(1),10);
+  var j=idx<state.jobs.length?state.jobs[idx]:state.cands[idx-state.jobs.length];
+  var a=(j&&j.address)||'';
+  return a.length>12?a.slice(0,12)+'…':a;
+}
+
+function renderResults(plan){
+  el('results').classList.remove('hidden');
+  el('btn-copy').classList.remove('hidden');
+  // 有勾选且已排好时间/日子的候选单时才显示「采用新单」
+  el('btn-adopt').classList.toggle('hidden',!adoptableCands(state.cands).length);
+  // 冲突
+  var confs=plan.conflicts.slice().sort(function(a,b){var o={red:0,orange:1,yellow:2,green:3};return (o[a.level]||4)-(o[b.level]||4);});
+  var confHtml=confs.length?confs.map(function(c){
+    return '<div class="conf-item '+esc(c.level)+'">'+({red:'🔴',orange:'🟠',yellow:'🟡',green:'✅'}[c.level]||'ℹ️')+' '+esc(c.text)+'</div>';
+  }).join(''):'<div class="conf-item green">✅ 未发现冲突,安排很从容</div>';
+  el('conf-list').innerHTML=confHtml;
+  // 周课表
+  var gridHtml='<tr><th>时间</th>'+[1,2,3,4,5,6,0].map(function(d){return '<th>'+DAY_NAMES[d]+'</th>';}).join('')+'</tr>';
+  gridHtml+='<tr><td></td>'+[1,2,3,4,5,6,0].map(function(d){
+    var ss=plan.byDay[d];
+    if(!ss||!ss.length)return '<td class="empty">—</td>';
+    return '<td>'+ss.map(function(s){
+      return '<div class="chip" style="border-left-color:'+JOB_COLORS[s.jobIdx%3]+'">'+(s.origStart!=null&&s.origStart!==s.start?'⏰':'')+fmtTime(s.start)+'-'+fmtTime(s.end)+'<br>'+esc(s.label)+(s.pay!=null?'<div class="pay">💰¥'+fmtMoney(s.pay)+'</div>':'')+'</div>';
+    }).join('')+'</td>';
+  }).join('')+'</tr>';
+  el('week-grid').innerHTML=gridHtml;
+  // 每日行程
+  var cards='';
+  plan.dayIdxs.forEach(function(d){
+    var dp=plan.dayPlans[d];
+    var rows='';
+    var cursor=null;
+    dp.steps.forEach(function(st){
+      if(st.type==='leg'){
+        var from=locName(st.from),to=locName(st.to);
+        var addrF=locAddr(st.from),addrT=locAddr(st.to);
+        if(st.leg&&st.leg.status==='err'){
+          rows+='<div class="step leg err"><span class="t">⚠️</span><div class="body">'+esc(from)+'('+esc(addrF)+') → '+esc(to)+'('+esc(addrT)+')<br><span class="muted">'+esc(st.leg.err||'路线查询失败')+' · 可点下方「清除路线缓存重查」重试</span></div></div>';
+        }else{
+          var depTxt=st.depart!=null?fmtTime(st.depart):'--:--';
+          var arrTxt=st.arrive!=null?fmtTime(st.arrive):'--:--';
+          var mid;
+          if(st.leg.manual){
+            mid='✍️ 手动估算 '+fmtDur(st.leg.dur);
+          }else{
+            mid=(st.leg.walkFallback?'🚶 步行 ':modeIcon(st.leg.mode)+' '+modeLabel(st.leg.mode)+' ')+fmtDur(st.leg.dur)+' · '+fmtKm(st.leg.distM);
+            if(st.leg.walkFallback)mid+='(距离近,无需地铁)';
+            else if(st.leg.cost!=null)mid+=' · 票价约¥'+fmtMoney(st.leg.cost);
+          }
+          rows+='<div class="step leg"><span class="t">'+depTxt+' 出发<br>'+arrTxt+' 到达</span><div class="body">'+mid+'<br><span class="muted">'+esc(from)+'('+esc(addrF)+') → '+esc(to)+'('+esc(addrT)+')</span></div></div>';
+          cursor=st.arrive;
+        }
+      }else if(st.type==='rest'){
+        var fromT=cursor!=null?fmtTime(cursor):'--:--';
+        var toT=(cursor!=null&&st.minutes!=null)?fmtTime(cursor+st.minutes):'--:--';
+        rows+='<div class="step rest"><span class="t">'+fromT+' ~ '+toT+'</span><div class="body">'+(st.home?'🏠 在家休息/吃饭':'☕ 在附近等待/备课')+(st.minutes!=null?' '+fmtDur(st.minutes):'')+'</div></div>';
+        if(cursor!=null&&st.minutes!=null)cursor+=st.minutes;
+      }else if(st.type==='session'){
+        rows+='<div class="step session" style="border-left-color:'+JOB_COLORS[st.jobIdx%3]+'"><span class="t">'+fmtTime(st.start)+'<br>'+fmtTime(st.end)+'</span><div class="body"><b>📖 上课 · '+esc(st.label)+'</b>'+(st.pay!=null?' · 💰¥'+fmtMoney(st.pay):'')+(st.origStart!=null&&st.origStart!==st.start?'<br><span class="muted">⏰ 建议微调(原 '+fmtTime(st.origStart)+'-'+fmtTime(st.origEnd)+')</span>':'')+'</div></div>';
+        cursor=st.end;
+      }else if(st.type==='note'){
+        rows+='<div class="step note-step '+esc(st.level||'')+'"><span class="t"></span><div class="body">'+esc(st.text)+'</div></div>';
+      }
+    });
+    cards+='<div class="day-card"><h4>📅 '+DAY_NAMES[d]+' <span class="muted">· 通勤 '+fmtDur(dp.travelMin)+' · '+fmtKm(dp.distM)+' · '+dp.sessions.length+'节课</span></h4>'+rows+'</div>';
+  });
+  el('day-cards').innerHTML=cards;
+  // 统计
+  var st=plan.stats;
+  var monthlyEst=st.weeklyIncome*4.33+st.monthlyTotal;
+  var statHtml=''
+    +'<div class="stat"><div class="k">每周课次</div><div class="v">'+st.sessionPerWeek+' 节</div><div class="d">共'+plan.dayIdxs.length+'个上课日</div></div>'
+    +'<div class="stat"><div class="k">每周收入</div><div class="v">¥'+fmtMoney(st.weeklyIncome)+'</div><div class="d">'+st.incomeDetail.map(esc).join('<br>')+'</div></div>'
+    +'<div class="stat"><div class="k">每月收入估算</div><div class="v">¥'+fmtMoney(Math.round(monthlyEst))+'</div><div class="d">按每月4.33周'+(st.monthlyList.length?'<br>'+st.monthlyList.map(esc).join('<br>'):'')+'</div></div>'
+    +'<div class="stat"><div class="k">每周通勤耗时</div><div class="v">'+fmtDur(st.weeklyTravelMin)+'</div><div class="d">在路上的时间</div></div>'
+    +'<div class="stat"><div class="k">每周通勤里程</div><div class="v">'+fmtKm(st.weeklyDistM)+'</div><div class="d">按所选出行方式</div></div>';
+  el('stats').innerHTML=statHtml;
+  lastPlan=plan;
+  el('results').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function showErrors(errs){
+  el('results').classList.add('hidden');
+  el('btn-copy').classList.add('hidden');
+  el('btn-adopt').classList.add('hidden');
+  el('errors').innerHTML=errs.map(function(e){return '<div class="err-item">❌ '+esc(e)+'</div>';}).join('');
+}
+
+function runPlan(){
+  el('errors').innerHTML='';
+  var prog=el('progress');
+  prog.classList.remove('hidden');
+  prog.textContent='开始规划…';
+  return buildPlan(function(msg){prog.textContent=msg;}).then(function(plan){
+    prog.classList.add('hidden');
+    if(!plan)return;
+    if(plan.fatal){showErrors(plan.fatal);return;}
+    planStale=false;updStale();
+    try{
+      renderResults(plan);
+    }catch(e){
+      showErrors(['结果渲染出错:'+(e&&e.message?e.message:String(e))]);
+      return;
+    }
+    toast('方案已生成 ✅');
+  }).catch(function(e){ // 任何意外异常都显示出来,不静默
+    prog.classList.add('hidden');
+    showErrors(['规划过程出错:'+(e&&e.message?e.message:String(e))]);
+  });
+}
+
+function setLegMode(key,value){
+  state.legMode[key]=value;
+  save();
+  runPlan();
+}
+function clearRouteCache(){
+  state.routeCache={};
+  save();
+  toast('路线缓存已清除');
+  if(lastPlan)runPlan();
+}
+
+/* ================= 复制文字版 ================= */
+function copyPlan(){
+  if(!lastPlan)return;
+  var L=[];
+  L.push('【家教行程规划】');
+  L.push('住址:'+state.settings.home+' · 默认出行:'+modeLabel(state.settings.mode)+' · 提前'+state.settings.buffer+'分钟到');
+  L.push('');
+  L.push('═══ 每周课表 ═══');
+  lastPlan.dayIdxs.forEach(function(d){
+    L.push(DAY_NAMES[d]+': '+lastPlan.byDay[d].map(function(s){return fmtTime(s.start)+'-'+fmtTime(s.end)+' '+s.label+(s.origStart!=null&&s.origStart!==s.start?'(建议微调,原'+fmtTime(s.origStart)+'-'+fmtTime(s.origEnd)+')':'')+(s.pay!=null?'('+fmtMoney(s.pay)+'元)':'');}).join(' | '));
+  });
+  L.push('');
+  L.push('═══ 每日行程 ═══');
+  lastPlan.dayIdxs.forEach(function(d){
+    var dp=lastPlan.dayPlans[d];
+    L.push('--- '+DAY_NAMES[d]+' (通勤'+fmtDur(dp.travelMin)+' · '+fmtKm(dp.distM)+') ---');
+    var cursor=null;
+    dp.steps.forEach(function(st){
+      if(st.type==='leg'){
+        if(st.leg&&st.leg.status==='err'){L.push('⚠ '+locName(st.from)+'→'+locName(st.to)+' 路线失败:'+st.leg.err);return;}
+        L.push(fmtTime(st.depart)+' 出发 '+locName(st.from)+' → '+fmtTime(st.arrive)+' 到达 '+locName(st.to)+' ('+(st.leg.manual?'手动 '+fmtDur(st.leg.dur):modeLabel(st.leg.mode)+' '+fmtDur(st.leg.dur)+' · '+fmtKm(st.leg.distM))+')');
+        cursor=st.arrive;
+      }else if(st.type==='rest'){
+        L.push(fmtTime(cursor)+'~'+fmtTime(cursor+st.minutes)+' '+(st.home?'在家休息':'在附近等待/备课')+(st.minutes!=null?fmtDur(st.minutes):''));
+        if(cursor!=null&&st.minutes!=null)cursor+=st.minutes;
+      }else if(st.type==='session'){
+        L.push(fmtTime(st.start)+'-'+fmtTime(st.end)+' 上课 '+st.label+(st.origStart!=null&&st.origStart!==st.start?' (建议微调,原'+fmtTime(st.origStart)+'-'+fmtTime(st.origEnd)+')':'')+(st.pay!=null?' ('+fmtMoney(st.pay)+'元)':''));
+        cursor=st.end;
+      }else if(st.type==='note'){
+        L.push(st.text);
+      }
+    });
+    L.push('');
+  });
+  L.push('═══ 统计 ═══');
+  var st=lastPlan.stats;
+  L.push('每周课次: '+st.sessionPerWeek+' 节');
+  L.push('每周收入: ¥'+fmtMoney(st.weeklyIncome)+(st.incomeDetail.length?' ('+st.incomeDetail.join(', ')+')':''));
+  L.push('每月估算: ¥'+fmtMoney(Math.round(st.weeklyIncome*4.33+st.monthlyTotal))+(st.monthlyList.length?' (含'+st.monthlyList.join(', ')+')':''));
+  L.push('每周通勤: '+fmtDur(st.weeklyTravelMin)+' · '+fmtKm(st.weeklyDistM));
+  if(lastPlan.conflicts.length){
+    L.push('');
+    L.push('⚠ 提醒:');
+    lastPlan.conflicts.forEach(function(c){L.push('· '+c.text);});
+  }
+  var text=L.join('\n');
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){toast('已复制到剪贴板 📋');},function(){fallbackCopy(text);});
+  }else fallbackCopy(text);
+}
+function fallbackCopy(text){
+  var ta=document.createElement('textarea');
+  ta.value=text;document.body.appendChild(ta);ta.select();
+  try{document.execCommand('copy');toast('已复制到剪贴板 📋');}catch(e){toast('复制失败,请手动选择文本复制');}
+  document.body.removeChild(ta);
+}
+
+/* ================= 初始化 ================= */
+function init(){
+  renderSettings();
+  renderFree();
+  renderJobs();
+  renderCands();
+  updStale();
+}
+
+/* 测试钩子(Node 环境验证解析逻辑用) */
+if(typeof window!=='undefined'){
+  window.__test={parseDays:parseDays,parseTime:parseTime,parseDuration:parseDuration,parseSalary:parseSalary,parseAddress:parseAddress,parseNote:parseNote,parseJobText:parseJobText,parseAppPosting:parseAppPosting,isAppPosting:isAppPosting,parseBracketPosting:parseBracketPosting,isBracketPosting:isBracketPosting,parseDurRange:parseDurRange,planDay:planDay,optimizeSchedule:optimizeSchedule,fmtTime:fmtTime,fmtDur:fmtDur,parseFreeRanges:parseFreeRanges,timeToMin:timeToMin,splitPostings:splitPostings,evalCandFit:evalCandFit,validate:validate,state:state,buildPlan:buildPlan,renderResults:renderResults,renderCands:renderCands,addCandidates:addCandidates,emptyJob:emptyJob,candidateSessions:candidateSessions,estimateWeeklyIncome:estimateWeeklyIncome,rankCandsByScore:rankCandsByScore,rankCandidates:rankCandidates,smartPick:smartPick,adoptCandidates:adoptCandidates,adoptableCands:adoptableCands,manualLegMin:manualLegMin};
+}
+
+if(typeof document!=='undefined'&&document.getElementById){init();}
+</script>
+</body>
+</html>
