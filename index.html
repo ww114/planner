@@ -156,7 +156,7 @@ footer{color:#9aa1b5;font-size:12px;margin-top:24px;text-align:center}
     <button class="btn btn-sm" onclick="smartPick()">🧠 智能选单并生成方案</button>
     <button class="btn btn-ghost btn-sm" onclick="clearCandidates()">🗑 清空候选</button>
   </div>
-  <p class="hint">🧠 智能选单:从这批单里挑<b>通勤最短、其次薪资最高</b>的一单自动勾选并生成方案;上课时间/日子没写的单,程序会自动算出最合适的时间段排进方案。</p>
+  <p class="hint">🧠 智能选单:从这批单里挑最优一单自动勾选并生成方案——<b>没写时间的单先排进你的空闲时段、自动选最近出发点</b>;<b>定时的单按家长要求时间段</b>算通勤;通勤最短的赢,<b>差距30分钟以内改选薪资最高</b>的单。</p>
   <div id="cand-list"></div>
   <div id="rank-list"></div>
 </section>
@@ -946,7 +946,7 @@ function addCandidates(){
   toast('已解析 '+added+' 个候选单'+(oldCount?('(已清除上一批 '+oldCount+' 个历史候选单)'):''));
 }
 
-/* ================= 智能选单:通勤最短优先、其次薪资 ================= */
+/* ================= 智能选单:真实排程模拟通勤,通勤差≤30分钟改比薪资 ================= */
 function candidateSessions(c){
   var tpw=parseInt(c.timesPerWeek,10)||0;
   if(tpw>0)return tpw;
@@ -976,6 +976,35 @@ function rankCandsByScore(rows){
     return (b.income||0)-(a.income||0);
   });
 }
+// 纯函数:定时候选单与已接单时段是否重叠(同一天且时间相交)
+function candConflicts(cand,fixedVJs){
+  var cst=timeToMin(cand.start),cen=timeToMin(cand.end);
+  if(cst==null||cen==null)return false;
+  var days=cand.days||[];
+  for(var i=0;i<fixedVJs.length;i++){
+    var f=fixedVJs[i];
+    var sameDay=days.some(function(d){return f.days.indexOf(d)>=0;});
+    if(sameDay&&cst<f.end&&cen>f.start)return true;
+  }
+  return false;
+}
+// 纯函数:按规则选出最优候选——通勤最短;通勤差距≤thresholdMin分钟时改比周收入,薪资高的赢;
+// 通勤全部未知(都排不进空闲时间)时退化为按周收入选
+function pickBestRow(rows,thresholdMin){
+  if(!rows||!rows.length)return null;
+  var withComm=rows.filter(function(r){return r.commute!=null;});
+  if(!withComm.length){
+    return rows.slice().sort(function(a,b){return (b.income||0)-(a.income||0);})[0];
+  }
+  var minComm=withComm.reduce(function(m,r){return Math.min(m,r.commute);},Infinity);
+  var within=withComm.filter(function(r){return r.commute<=minComm+thresholdMin;});
+  return within.slice().sort(function(a,b){
+    if((b.income||0)!==(a.income||0))return (b.income||0)-(a.income||0);
+    return a.commute-b.commute;
+  })[0];
+}
+// 智能选单:逐候选用真实排程模拟整周通勤,算出"多接这一单"的边际通勤;
+// 未定时间的候选交给排时优化器放进空闲时段(自动选最近出发/衔接最省的时段),定时候选按家长时间安排
 function rankCandidates(onProgress){
   var s=state.settings;
   var manualOn=!!(s.manual&&s.manual.on);
@@ -984,42 +1013,138 @@ function rankCandidates(onProgress){
   var list=[];
   for(var i=0;i<state.cands.length;i++){if(state.cands[i].address.trim())list.push({i:i,c:state.cands[i]});}
   if(!list.length)return Promise.resolve({err:'候选单都没有地址,无法比较通勤,请先补全地址'});
-  // 手动通勤模式:不调高德,按「到家分钟」估算每周通勤
+  // 基础设置/已接单先过校验;候选单自身的错误不拦选单,排不进的候选会在结果里注明原因
+  var useFlags=state.cands.map(function(c){return c.use;});
+  state.cands.forEach(function(c){c.use=false;});
+  var baseV=validate();
+  state.cands.forEach(function(c,i){c.use=useFlags[i];});
+  if(baseV.errs.length)return Promise.resolve({err:'请先解决基础设置/已接单的问题再选单: '+baseV.errs[0]});
+  var fixedVJs=baseV.validJobs;
+  // 需要路线的"地点对":家+已接单之间全双向;每个候选再连到这些地点(全双向)
+  var locs=['home'];
+  fixedVJs.forEach(function(vj){locs.push('j'+vj.idx);});
+  var candLocs=list.map(function(x){return 'j'+(state.jobs.length+x.i);});
+  var needKeys=[],seen={};
+  function pushKey(k){if(seen[k])return;seen[k]=1;needKeys.push(k);}
+  locs.forEach(function(a){locs.forEach(function(b){if(a!==b)pushKey(a+'|'+b);});});
+  list.forEach(function(x){
+    var cl='j'+(state.jobs.length+x.i);
+    locs.forEach(function(l){pushKey(cl+'|'+l);pushKey(l+'|'+cl);});
+  });
+  var buildLegsP;
   if(manualOn){
     if(onProgress)onProgress('手动通勤模式:按「到家分钟」估算通勤…');
-    var def=+(s.manual.home)||30;
-    var rowsM=list.map(function(x){
-      var hm=x.c.homeMin?+x.c.homeMin:0;
-      var oneWay=Math.max(5,hm||def);
-      var sessions=candidateSessions(x.c);
-      return {i:x.i,c:x.c,label:x.c.label||('候选'+(x.i+1)),commute:Math.round(oneWay*2*sessions),routeErr:'',income:estimateWeeklyIncome(x.c)};
+    var byId={'home':null};
+    fixedVJs.forEach(function(vj){byId['j'+vj.idx]=vj.j;});
+    list.forEach(function(x){byId['j'+(state.jobs.length+x.i)]=x.c;});
+    var mres={};
+    needKeys.forEach(function(k){
+      var parts=k.split('|');
+      mres[k]={status:'ok',dur:manualLegMin(parts[0],parts[1],byId),distM:0,cost:null,manual:true,mode:'transit'};
     });
-    return Promise.resolve({rows:rowsM});
-  }
-  return geocode(s.home).then(function(home){
-    var rows=[];
-    var done=0;
-    var chain=Promise.resolve();
-    list.forEach(function(x){
-      chain=chain.then(function(){
-        var p=geocode(x.c.address).then(function(g){
-          return routeLeg(home,g,'transit');
-        }).catch(function(e){
-          return {status:'err',err:e&&e.message?e.message:String(e)};
-        });
-        return p.then(function(r){
-          done++;
-          if(onProgress)onProgress('正在比较候选单通勤与薪资 '+done+'/'+list.length+' …');
-          var sessions=candidateSessions(x.c);
-          rows.push({i:x.i,c:x.c,label:x.c.label||('候选'+(x.i+1)),
-            commute:(r&&r.status==='ok')?Math.round(r.dur*2*sessions):null,
-            routeErr:(r&&r.status==='ok')?'':(r&&r.err?r.err:'定位失败'),
-            income:estimateWeeklyIncome(x.c)});
-          return sleep(400); // 逐条查询,间隔400ms避免高德QPS限流
+    buildLegsP=Promise.resolve(mres);
+  }else{
+    buildLegsP=(function(){
+      var geo={},geoErr={};
+      var ids=[['home',s.home]];
+      fixedVJs.forEach(function(vj){ids.push(['j'+vj.idx,vj.j.address]);});
+      list.forEach(function(x){ids.push(['j'+(state.jobs.length+x.i),x.c.address]);});
+      var step=0,chain=Promise.resolve();
+      ids.forEach(function(it){
+        chain=chain.then(function(){
+          step++;
+          if(onProgress)onProgress('正在定位地址 '+step+'/'+ids.length+' …');
+          return geocode(it[1]).then(function(g){geo[it[0]]=g;})
+            .catch(function(e){geoErr[it[0]]=e&&e.message?e.message:String(e);})
+            .then(function(){return sleep(400);});
         });
       });
+      return chain.then(function(){
+        var results={};
+        var done=0,chain2=Promise.resolve();
+        needKeys.forEach(function(k){
+          chain2=chain2.then(function(){
+            var parts=k.split('|'),f=parts[0],t=parts[1];
+            var gA=geo[f],gB=geo[t];
+            // 已有成功路线的直接复用(二次点「智能选单」很快);失败/没查过的走接口
+            var ck=gA&&gB?('transit|'+gA.lng+','+gA.lat+'|'+gB.lng+','+gB.lat):'';
+            var cached=ck&&state.routeCache[ck];
+            var p;
+            if(!gA||!gB)p=Promise.resolve({status:'err',err:'地址定位失败'+(geoErr[f]||geoErr[t]?'('+(geoErr[f]||geoErr[t])+')':'')});
+            else if(cached&&cached.status==='ok')p=Promise.resolve(cached);
+            else p=routeLeg(gA,gB,'transit');
+            return p.then(function(r){
+              results[k]=r;
+              done++;
+              if(onProgress)onProgress('正在比较候选单 '+done+'/'+needKeys.length+' 段路线…');
+              return cached&&cached.status==='ok'?null:sleep(400); // 命中缓存的不用再等
+            });
+          });
+        });
+        return chain2.then(function(){return results;});
+      });
+    })();
+  }
+  return buildLegsP.then(function(legs){
+    // 已接单的排时优化对象(与生成方案同一套映射)
+    var fixedOpt=fixedVJs.map(function(vj){
+      var dur=vj.untimed?((+vj.j.durMin>0)?+vj.j.durMin:120):(vj.end-vj.start);
+      return {idx:vj.idx,j:vj.j,start:vj.start,end:vj.end,days:vj.days,untimed:vj.untimed,
+        label:jobTitle(vj.idx,vj.j),adjustable:true,flexible:vj.untimed,dur:dur,
+        timesPerWeek:parseInt(vj.j.timesPerWeek,10)||0,
+        pay:vj.untimed?calcPay(vj.j,0,dur):calcPay(vj.j,vj.start,vj.end)};
     });
-    return chain.then(function(){return {rows:rows};});
+    var baseTotal=0;
+    if(fixedOpt.length){
+      var baseOpt=optimizeSchedule(fixedOpt,legs,s);
+      if(baseOpt&&baseOpt.sessions)baseTotal=baseOpt.total||0;
+    }
+    var rows=[];
+    list.forEach(function(x){
+      var c=x.c;
+      var cst=timeToMin(c.start),cen=timeToMin(c.end);
+      var untimed=!(c.start&&c.end);
+      var cdur=untimed?((+c.durMin>0)?+c.durMin:120):(cen-cst);
+      var clabel=c.label||('候选'+(x.i+1));
+      var candIdx=state.jobs.length+x.i;
+      var commute=null,routeErr='',placeText='';
+      if(!untimed){
+        if(!(c.days&&c.days.length))routeErr='还没选上课日';
+        else if(cst==null||cen==null||cen<=cst)routeErr='时间不对(开始不能晚于结束)';
+        else if(candConflicts(c,fixedVJs))routeErr='与已接单时间冲突';
+      }
+      if(!routeErr){
+        var hl=legs['home|j'+candIdx],lh=legs['j'+candIdx+'|home'];
+        if((hl&&hl.status!=='ok')||(lh&&lh.status!=='ok'))routeErr='路线查询失败(该地址只地铁到不了?)';
+      }
+      if(!routeErr){
+        var candOpt={idx:candIdx,j:c,start:cst,end:cen,days:(c.days||[]).slice(),untimed:untimed,
+          label:clabel,adjustable:false,flexible:untimed,dur:cdur,
+          timesPerWeek:parseInt(c.timesPerWeek,10)||0,
+          pay:untimed?calcPay(c,0,cdur):calcPay(c,cst,cen)};
+        var opt=optimizeSchedule(fixedOpt.concat([candOpt]),legs,s);
+        if(opt&&opt.sessions){
+          if(untimed){
+            // 未定时间:交给排时优化器放进空闲时段,边际通勤=选最省衔接/最近出发后的整周增量
+            var placed=null;
+            for(var p2=0;p2<opt.placements.length;p2++){
+              if(opt.placements[p2].idx===candIdx){placed=opt.placements[p2];break;}
+            }
+            if(placed){
+              commute=Math.max(0,Math.round(opt.total-baseTotal));
+              placeText=placed.days.map(function(d){return DAY_NAMES[d];}).join('、')+' '+fmtTime(placed.start)+'-'+fmtTime(placed.end);
+            }else if(!state.free.some(function(f){return parseFreeRanges(f).length;}))routeErr='空闲时段没填,无法自动排时';
+            else routeErr='空闲时段排不下(时长/通勤衔接来不及)';
+          }else{
+            // 定时:按家长要求的时间段安排;整体冲突回落(总通勤清零)时通勤作废
+            if(opt.total===0&&baseTotal>0)routeErr='与已接单时间冲突';
+            else commute=Math.max(0,Math.round(opt.total-baseTotal));
+          }
+        }else routeErr='与已接单时间冲突';
+      }
+      rows.push({i:x.i,c:c,label:clabel,commute:commute,routeErr:routeErr,income:estimateWeeklyIncome(c),placeText:placeText});
+    });
+    return {rows:rows};
   });
 }
 function smartPick(){
@@ -1034,20 +1159,22 @@ function smartPick(){
       return;
     }
     var ranked=rankCandsByScore(res.rows);
-    var best=ranked[0];
+    var best=pickBestRow(res.rows,30); // 通勤差距≤30分钟时改比薪资,薪资高的赢
+    var bestI=best?best.i:-1;
     // 自动勾选最优单(其余取消勾选),再生成方案
-    state.cands.forEach(function(c,i){c.use=(i===best.i);});
+    state.cands.forEach(function(c,i){c.use=(i===bestI);});
     save();renderCands();markStale();
-    var html='<div class="sec-title" style="font-size:14px;margin:14px 0 6px">🧠 智能选单结果(通勤最短优先,其次薪资)</div>';
-    ranked.forEach(function(r,pos){
-      var comm=r.commute!=null?fmtDur(r.commute):('通勤未知'+(r.routeErr?'('+esc(r.routeErr)+')':''));
+    var html='<div class="sec-title" style="font-size:14px;margin:14px 0 6px">🧠 智能选单结果(通勤最短;差距30分钟内选薪资最高)</div>';
+    ranked.forEach(function(r){
+      var comm=r.commute!=null?('每周通勤 '+fmtDur(r.commute)):('排不进'+(r.routeErr?'('+esc(r.routeErr)+')':''));
       var inc=r.income!=null?('每周约¥'+fmtMoney(r.income)):'薪资未填';
-      html+='<div class="chip" style="border-left-color:'+(pos===0?'#30a46c':'#9aa3b5')+'">'
-        +(pos===0?'⭐ 推荐 ':'')+'<b>'+esc(r.label)+'</b> · 每周通勤 '+comm+' · '+inc+' · '+esc(salaryText(r.c))
+      html+='<div class="chip" style="border-left-color:'+(r.i===bestI?'#30a46c':'#9aa3b5')+'">'
+        +(r.i===bestI?'⭐ 推荐 ':'')+'<b>'+esc(r.label)+'</b> · '+comm+' · '+inc+' · '+esc(salaryText(r.c))
+        +(r.placeText?' · 可排 '+esc(r.placeText):'')
         +'</div>';
     });
     if(ranked.length>1){
-      html+='<p class="hint">已自动勾选第1名「'+esc(best.label)+'」并生成下方方案(时间没写的单已自动算出最合适时段)。想换别的单,直接在候选卡上重新勾选后点第5步即可。</p>';
+      html+='<p class="hint">已自动勾选「'+esc(best.label)+'」并生成下方方案:未定时间的单已按你的空闲时段自动选最近出发点排好;定时的单按家长要求时间段算通勤;通勤差距30分钟以内时,选薪资更高的。想换别的单,直接在候选卡上重新勾选后点第5步即可。</p>';
     }
     el('rank-list').innerHTML=html;
     toast('已选中最优单,正在生成方案…');
@@ -2038,7 +2165,7 @@ function init(){
 
 /* 测试钩子(Node 环境验证解析逻辑用) */
 if(typeof window!=='undefined'){
-  window.__test={parseDays:parseDays,parseTime:parseTime,parseDuration:parseDuration,parseSalary:parseSalary,parseAddress:parseAddress,parseNote:parseNote,parseJobText:parseJobText,parseAppPosting:parseAppPosting,isAppPosting:isAppPosting,parseBracketPosting:parseBracketPosting,isBracketPosting:isBracketPosting,parseDurRange:parseDurRange,planDay:planDay,optimizeSchedule:optimizeSchedule,fmtTime:fmtTime,fmtDur:fmtDur,parseFreeRanges:parseFreeRanges,timeToMin:timeToMin,splitPostings:splitPostings,evalCandFit:evalCandFit,validate:validate,state:state,buildPlan:buildPlan,renderResults:renderResults,renderCands:renderCands,addCandidates:addCandidates,emptyJob:emptyJob,candidateSessions:candidateSessions,estimateWeeklyIncome:estimateWeeklyIncome,rankCandsByScore:rankCandsByScore,rankCandidates:rankCandidates,smartPick:smartPick,adoptCandidates:adoptCandidates,adoptableCands:adoptableCands,manualLegMin:manualLegMin,buildExportPayload:buildExportPayload,applyImportedData:applyImportedData};
+  window.__test={parseDays:parseDays,parseTime:parseTime,parseDuration:parseDuration,parseSalary:parseSalary,parseAddress:parseAddress,parseNote:parseNote,parseJobText:parseJobText,parseAppPosting:parseAppPosting,isAppPosting:isAppPosting,parseBracketPosting:parseBracketPosting,isBracketPosting:isBracketPosting,parseDurRange:parseDurRange,planDay:planDay,optimizeSchedule:optimizeSchedule,fmtTime:fmtTime,fmtDur:fmtDur,parseFreeRanges:parseFreeRanges,timeToMin:timeToMin,splitPostings:splitPostings,evalCandFit:evalCandFit,validate:validate,state:state,buildPlan:buildPlan,renderResults:renderResults,renderCands:renderCands,addCandidates:addCandidates,emptyJob:emptyJob,candidateSessions:candidateSessions,estimateWeeklyIncome:estimateWeeklyIncome,rankCandsByScore:rankCandsByScore,pickBestRow:pickBestRow,candConflicts:candConflicts,rankCandidates:rankCandidates,smartPick:smartPick,adoptCandidates:adoptCandidates,adoptableCands:adoptableCands,manualLegMin:manualLegMin,buildExportPayload:buildExportPayload,applyImportedData:applyImportedData};
 }
 
 if(typeof document!=='undefined'&&document.getElementById){init();}

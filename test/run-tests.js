@@ -274,6 +274,22 @@ eq('排序:通勤最短优先', ranked.map(function (r) { return r.label; }).joi
 eq('排序:同通勤比薪资', ranked[0].label, 'C');
 eq('排序:通勤未知排最后按收入', ranked.slice(3).map(function (r) { return r.label; }).join(','), 'D,E');
 
+console.log('--- 智能选单选优规则(通勤差≤30分钟改比薪资) ---');
+eq('选优:差距25分钟→薪资高', T.pickBestRow([{ i: 0, commute: 100, income: 500 }, { i: 1, commute: 75, income: 200 }], 30).i, 0);
+eq('选优:差距40分钟→通勤短', T.pickBestRow([{ i: 0, commute: 100, income: 900 }, { i: 1, commute: 60, income: 200 }], 30).i, 1);
+eq('选优:恰好30分钟→薪资高(含边界)', T.pickBestRow([{ i: 0, commute: 90, income: 500 }, { i: 1, commute: 60, income: 100 }], 30).i, 0);
+eq('选优:薪资相同→通勤短', T.pickBestRow([{ i: 0, commute: 90, income: 300 }, { i: 1, commute: 60, income: 300 }], 30).i, 1);
+eq('选优:没填薪资按0算', T.pickBestRow([{ i: 0, commute: 80, income: null }, { i: 1, commute: 65, income: 100 }], 30).i, 1);
+eq('选优:排不进的单不进30分窗口', T.pickBestRow([{ i: 0, commute: 50, income: 100 }, { i: 1, commute: null, income: 9999 }], 30).i, 0);
+eq('选优:全部排不进→退化为比薪资', T.pickBestRow([{ i: 0, commute: null, income: 100 }, { i: 1, commute: null, income: 900 }], 30).i, 1);
+eq('选优:空列表→null', T.pickBestRow([], 30), null);
+// 定时候选与已接单的冲突预判(同一天且时间相交才算)
+var fixedVJs = [{ idx: 0, j: {}, start: 540, end: 660, days: [6] }];
+eq('冲突:同日重叠→冲突', T.candConflicts({ start: '10:00', end: '12:00', days: [6] }, fixedVJs), true);
+eq('冲突:不同天→不冲突', T.candConflicts({ start: '10:00', end: '12:00', days: [0] }, fixedVJs), false);
+eq('冲突:首尾相接→不冲突', T.candConflicts({ start: '11:00', end: '13:00', days: [6] }, fixedVJs), false);
+eq('冲突:没填时间→不冲突', T.candConflicts({ start: '', end: '', days: [6] }, fixedVJs), false);
+
 console.log('--- 采用新单(勾选且已排好时间/日子才可采用) ---');
 var adBl = { use: true, start: '10:00', end: '12:00', days: [6] };
 eq('可采:勾选+时间+日子齐', T.adoptableCands([Object.assign({}, adBl)]).length, 1);
@@ -516,6 +532,35 @@ eq('优化I 周六保留两节冲突课', optI.sessions[6].length, 2);
 eq('优化I 候选排到周日', optI.placements[0].days, [0]);
 eq('优化I 候选8:40开课', optI.placements[0].start, 520);
 eq('优化I 已接单不动', optI.shifts.length, 0);
+
+console.log('--- 智能选单边际通勤模拟(未定排空闲/定时按家长时间/冲突作废) ---');
+// 模拟 rankCandidates 的算法:先只排已接单(基础通勤),再加候选重排,边际=两者之差
+// 路线桩沿用 optLegs:home↔j0 30、home↔j2 20、j0↔j2 20
+T.state.free = ['', '', '', '', '', '', '08:00-19:00'];
+var fixedOptJ = [mkJob(0, 540, 660, [6], { label: '单1', adjustable: true })];
+var baseJ = T.optimizeSchedule(fixedOptJ, optLegs, { buffer: 10 });
+eq('边际基础:只上已接单整周通勤60', baseJ.total, 60);
+var optJ = T.optimizeSchedule(fixedOptJ.concat([mkJob(2, null, null, [6], { label: '候选1', flexible: true, dur: 120 })]), optLegs, { buffer: 10 });
+eq('边际J:未定时候选排进周六空闲', optJ.placements[0].days, [6]);
+eq('边际J:选衔接最近的时段11:40', optJ.placements[0].start, 700);
+eq('边际J:整周通勤70', optJ.total, 70);
+eq('边际J:边际通勤=70-60=10分钟', optJ.total - baseJ.total, 10);
+// 定时候选:14:00-16:00 按家长时间段安排,课间 3 小时按规则先回家
+var optK = T.optimizeSchedule(fixedOptJ.concat([mkJob(2, 840, 960, [6], { label: '候选2' })]), optLegs, { buffer: 10 });
+eq('边际K:定时候选按14:00-16:00排', [optK.sessions[6][1].start, optK.sessions[6][1].end], [840, 960]);
+eq('边际K:课间先回家整周通勤100', optK.total, 100);
+eq('边际K:边际通勤=100-60=40分钟', optK.total - baseJ.total, 40);
+eq('边际K:已接单不因候选移动', optK.shifts.length, 0);
+// 定时候选与已接单重叠 → 优化器整体回落(总通勤清零),rankCandidates 据此判冲突作废
+var optL = T.optimizeSchedule(fixedOptJ.concat([mkJob(2, 600, 720, [6], { label: '候选2' })]), optLegs, { buffer: 10 });
+eq('边际L:冲突回落总通勤归零', optL.total, 0);
+eq('边际L:冲突两节课保留(留给红色提示)', optL.sessions[6].length, 2);
+eq('边际L:通勤作废条件成立(base>0)', optL.total === 0 && baseJ.total > 0, true);
+// 未定时候选没勾上课日、又没填空闲时段 → 排不进,通勤按未知处理
+T.state.free = ['', '', '', '', '', '', ''];
+var optM = T.optimizeSchedule(fixedOptJ.concat([mkJob(2, null, null, [], { label: '候选1', flexible: true, dur: 120 })]), optLegs, { buffer: 10 });
+eq('边际M:没填空闲→候选排不进', optM.placements.length, 0);
+eq('边际M:整周通勤不变', optM.total, baseJ.total);
 
 console.log('--- 其他 ---');
 eq('parseFreeRanges', T.parseFreeRanges('10:00-12:00, 19:00-22:00'), [[600, 720], [1140, 1320]]);
