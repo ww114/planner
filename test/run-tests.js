@@ -341,13 +341,24 @@ pd = T.planDay(1, [A, { jobIdx: 1, label: '单2', start: 1020, end: 1140, pay: 1
 eq('场景5 有黄色警告', confs.some(c => c.level === 'yellow'), true);
 
 console.log('--- 候选新单 ---');
-// 默认状态应已预填用户的三单和空闲时间(打开网页就有,不用点按钮)
-eq('默认预填三单', T.state.jobs.filter(j => j.raw).length, 3);
-eq('默认预填周五空闲 14-18', T.state.free[5], '14:00-18:00');
-eq('默认预填周六空闲 8-19', T.state.free[6], '08:00-19:00');
-eq('默认预填周日空闲 8-19', T.state.free[0], '08:00-19:00');
-eq('预填三单校验无错误', T.validate().errs.length, 0);
-eq('预填三单有效数', T.validate().validJobs.length, 3);
+// 默认状态应为空白引导:发给别人用,每个人各存各的,互不可见
+eq('默认空白:不预填单', T.state.jobs.filter(j => (j.raw || '').trim() || (j.address || '').trim() || (j.label || '').trim()).length, 0);
+eq('默认空白:空闲全空', T.state.free.filter(f => String(f || '').trim()).length, 0);
+eq('默认空白:无有效单', T.validate().validJobs.length, 0);
+// 导出/导入(换设备迁移)
+var expPayload = T.buildExportPayload();
+eq('导出结构:settings/jobs/cands', !!(expPayload && expPayload.settings && Array.isArray(expPayload.jobs) && Array.isArray(expPayload.cands)), true);
+eq('导出不含地图缓存', !('geoCache' in expPayload) && !('routeCache' in expPayload), true);
+eq('导入:坏文件被拒', !!T.applyImportedData({ foo: 1 }), true);
+eq('导入:结构不对被拒', !!T.applyImportedData({ settings: {}, jobs: {}, cands: {} }), true);
+var bj2 = T.emptyJob();
+Object.assign(bj2, { raw: 'x', label: '单1', days: [1], start: '10:00', end: '12:00', amount: '100', address: '南山区' });
+T.applyImportedData({ v: 2, settings: { city: '深圳市', home: '测试家', key: 'k', mode: 'transit', buffer: 10, manual: { on: false, home: 30, hop: 20 } }, free: ['', '', '', '', '', '', ''], jobs: [bj2], cands: [], legMode: {} });
+eq('导入后:新数据生效(有效单1)', T.validate().validJobs.length, 1);
+eq('导入后:住址已生效', T.validate().errs.some(e => /住址/.test(e)), false);
+// 恢复导入前数据,保证后续用例环境一致
+T.applyImportedData(expPayload);
+eq('恢复:回到导入前(有效单0)', T.validate().validJobs.length, 0);
 eq('splitPostings 两条', T.splitPostings('【家教】A单周六9-11\n\n【家教】B单周日2-4').length, 2);
 eq('splitPostings 无标记单条', T.splitPostings('初二数学,周六9点到11点,地址:南山').length, 1);
 eq('splitPostings 空文本', T.splitPostings('  \n ').length, 0);
@@ -365,6 +376,7 @@ eq('候选未定时间一周3次→挑3天提示', T.evalCandFit({ days: [], sta
 eq('候选只填开始时间→黄', T.evalCandFit({ days: [6], start: '10:00', end: '' }).level, 'yellow');
 
 // validate 是否把勾选的候选计入方案
+T.state.settings.home = '测试家'; // 空白引导默认无住址,校验前补上(城市/key 前面的用例已设)
 T.state.cands = [Object.assign({}, blankJob, { raw: 'y', use: true, label: '候选1', days: [5], start: '14:00', end: '16:00', amount: '120', address: '宝安区怀德地铁站' })];
 eq('validate 已接+候选=2', T.validate().validJobs.length, 2);
 T.state.cands[0].use = false;

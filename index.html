@@ -121,7 +121,12 @@ footer{color:#9aa1b5;font-size:12px;margin-top:24px;text-align:center}
     <div class="field"><label>家↔单 默认通勤(分钟)</label><input id="set-manual-home" type="number" min="1" max="240" oninput="updManual('home',this.value)"></div>
     <div class="field"><label>单↔单 转场默认(分钟)</label><input id="set-manual-hop" type="number" min="1" max="240" oninput="updManual('hop',this.value)"></div>
   </div>
-  <p class="hint">💡 高德 Key 免费申请:打开 <a href="https://console.amap.com/dev/key/app" target="_blank">console.amap.com</a> → 注册登录 → 应用管理 → 创建应用 → 添加 Key,服务平台选「<b>Web服务</b>」即可。Key 只保存在你本机浏览器里,不会外传。📱 手机上高德解析不了地址?勾选「<b>手动通勤模式</b>」,给每个单填上「到家分钟」,不用高德也能出完整方案。</p>
+  <p class="hint">💡 高德 Key 免费申请:打开 <a href="https://console.amap.com/dev/key/app" target="_blank">console.amap.com</a> → 注册登录 → 应用管理 → 创建应用 → 添加 Key,服务平台选「<b>Web服务</b>」即可。Key 只保存在你本机浏览器里,不会外传。📱 手机上高德解析不了地址?勾选「<b>手动通勤模式</b>」,给每个单填上「到家分钟」,不用高德也能出完整方案。<br>📦 数据只存在<b>你自己浏览器</b>的本机存储里:每个人打开各存各的、互不可见;换手机或换浏览器前,点下方「<b>导出我的数据</b>」备份,到新环境「<b>导入</b>」即可恢复。</p>
+  <div class="btn-row" style="margin-top:6px">
+    <button class="btn btn-ghost btn-sm" onclick="exportData()">📤 导出我的数据</button>
+    <button class="btn btn-ghost btn-sm" onclick="el('import-file').click()">📥 导入数据(覆盖当前)</button>
+    <input type="file" id="import-file" accept=".json,application/json" class="hidden" onchange="importData(this)">
+  </div>
 </section>
 
 <!-- ② 空闲时间 -->
@@ -672,14 +677,14 @@ function sampleJobsParsed(){
 }
 function defaultState(){
   return {
-    settings:{city:'深圳市',home:'哈尔滨工业大学深圳校区',key:'613e32a79222f9e37d90a7de40dd009d',mode:'transit',buffer:10,manual:{on:false,home:30,hop:20}},
-    free:['08:00-19:00','','','','','14:00-18:00','08:00-19:00'], // 周日、周五、周六;未定时候选单自动排进这些时段(自动剔除已接单占用时间)
-    jobs:sampleJobsParsed(),
+    settings:{city:'',home:'',key:'613e32a79222f9e37d90a7de40dd009d',mode:'transit',buffer:10,manual:{on:false,home:30,hop:20}},
+    free:['','','','','','',''], // 留空=该天无空闲;未定时候选单自动排进空闲时段(首次打开是空白引导,各人填各自的)
+    jobs:[emptyJob(),emptyJob(),emptyJob()], // 首次打开不预填任何单(数据只存各自浏览器,互不可见)
     cands:[],
     legMode:{},
     geoCache:{},
     routeCache:{},
-    v:2 // 空闲时间数据版本:2 起为「周五14-18、周六日8-19」,旧版存储的空闲时间不沿用
+    v:2 // 数据版本:2 起为空白引导+手动通勤模式;旧版存储按规则合并,不沿用示例数据
   };
 }
 function emptyJob(){return {label:'',raw:'',days:[],start:'',end:'',durMin:'',payType:'hourly',amount:'',amountMax:'',address:'',note:'',timesPerWeek:'',homeMin:''};}
@@ -1094,6 +1099,65 @@ function updManual(field,value){
   }
   m[field]=parseInt(value,10)||0;
   save();markStale();
+}
+
+/* ================= 数据导出/导入(换设备迁移) ================= */
+function buildExportPayload(){
+  return {
+    app:'jiajiao-planner',v:2,exportedAt:new Date().toISOString(),
+    settings:state.settings,free:state.free,jobs:state.jobs,cands:state.cands,legMode:state.legMode
+  }; // 不带地图缓存(跟设备无关,到新环境重新查询)
+}
+// 校验并原地替换 state 各字段(保持 state 引用不变);失败返回错误文案,成功返回 null
+function applyImportedData(obj){
+  if(!obj||typeof obj!=='object'||!obj.settings||!Array.isArray(obj.jobs)||!Array.isArray(obj.cands))return '数据文件结构不对,请选择本程序导出的 .json 文件';
+  var d=defaultState();
+  d.settings=Object.assign(d.settings,obj.settings||{});
+  d.settings.manual=Object.assign({on:false,home:30,hop:20},d.settings.manual||{});
+  if(obj.v>=2&&Array.isArray(obj.free)&&obj.free.length===7)d.free=obj.free.map(function(x){return String(x||'');});
+  d.jobs=(obj.jobs||[]).map(function(j){return Object.assign(emptyJob(),j);});
+  while(d.jobs.length<3)d.jobs.push(emptyJob());
+  d.cands=(obj.cands||[]).map(function(j){return Object.assign(emptyJob(),j);});
+  if(obj.legMode)d.legMode=obj.legMode||{};
+  state.settings=d.settings;state.free=d.free;state.jobs=d.jobs;state.cands=d.cands;state.legMode=d.legMode;
+  state.geoCache={};state.routeCache={}; // 旧环境的地图缓存作废,重新查询
+  return null;
+}
+function exportData(){
+  var payload=buildExportPayload();
+  var blob=new Blob([JSON.stringify(payload,null,1)],{type:'application/json'});
+  var a=document.createElement('a');
+  var now=new Date();
+  var pad=function(n){return (n<10?'0':'')+n;};
+  a.href=URL.createObjectURL(blob);
+  a.download='jiajiao-data-'+now.getFullYear()+pad(now.getMonth()+1)+pad(now.getDate())+'.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function(){URL.revokeObjectURL(a.href);},3000);
+  toast('已导出数据文件(设置+已接单+候选单),换设备时用它导入');
+}
+function importData(inputEl){
+  var f=inputEl.files&&inputEl.files[0];
+  inputEl.value=''; // 允许重复选择同一个文件
+  if(!f)return;
+  var reader=new FileReader();
+  reader.onload=function(){
+    var obj=null;
+    try{obj=JSON.parse(String(reader.result));}catch(e){toast('❌ 文件不是有效的 JSON 数据文件');return;}
+    if(!confirm('导入将覆盖当前的全部设置与家教单(已接单 '+state.jobs.length+' 个、候选单 '+state.cands.length+' 个),确定继续?'))return;
+    var err=applyImportedData(obj);
+    if(err){toast('❌ '+err);return;}
+    save();renderSettings();renderFree();renderJobs();renderCands();
+    el('rank-list').innerHTML='';
+    lastPlan=null;planStale=false;updStale();
+    el('results').classList.add('hidden');
+    el('btn-copy').classList.add('hidden');
+    el('btn-adopt').classList.add('hidden');
+    toast('✅ 导入成功:已接单 '+state.jobs.length+' 个、候选单 '+state.cands.length+' 个');
+  };
+  reader.onerror=function(){toast('❌ 读取文件失败');};
+  reader.readAsText(f);
 }
 function updFree(d,value){state.free[d]=value;save();markStale();}
 function updJob(i,field,value){state.jobs[i][field]=value;save();markStale();}
@@ -1974,7 +2038,7 @@ function init(){
 
 /* 测试钩子(Node 环境验证解析逻辑用) */
 if(typeof window!=='undefined'){
-  window.__test={parseDays:parseDays,parseTime:parseTime,parseDuration:parseDuration,parseSalary:parseSalary,parseAddress:parseAddress,parseNote:parseNote,parseJobText:parseJobText,parseAppPosting:parseAppPosting,isAppPosting:isAppPosting,parseBracketPosting:parseBracketPosting,isBracketPosting:isBracketPosting,parseDurRange:parseDurRange,planDay:planDay,optimizeSchedule:optimizeSchedule,fmtTime:fmtTime,fmtDur:fmtDur,parseFreeRanges:parseFreeRanges,timeToMin:timeToMin,splitPostings:splitPostings,evalCandFit:evalCandFit,validate:validate,state:state,buildPlan:buildPlan,renderResults:renderResults,renderCands:renderCands,addCandidates:addCandidates,emptyJob:emptyJob,candidateSessions:candidateSessions,estimateWeeklyIncome:estimateWeeklyIncome,rankCandsByScore:rankCandsByScore,rankCandidates:rankCandidates,smartPick:smartPick,adoptCandidates:adoptCandidates,adoptableCands:adoptableCands,manualLegMin:manualLegMin};
+  window.__test={parseDays:parseDays,parseTime:parseTime,parseDuration:parseDuration,parseSalary:parseSalary,parseAddress:parseAddress,parseNote:parseNote,parseJobText:parseJobText,parseAppPosting:parseAppPosting,isAppPosting:isAppPosting,parseBracketPosting:parseBracketPosting,isBracketPosting:isBracketPosting,parseDurRange:parseDurRange,planDay:planDay,optimizeSchedule:optimizeSchedule,fmtTime:fmtTime,fmtDur:fmtDur,parseFreeRanges:parseFreeRanges,timeToMin:timeToMin,splitPostings:splitPostings,evalCandFit:evalCandFit,validate:validate,state:state,buildPlan:buildPlan,renderResults:renderResults,renderCands:renderCands,addCandidates:addCandidates,emptyJob:emptyJob,candidateSessions:candidateSessions,estimateWeeklyIncome:estimateWeeklyIncome,rankCandsByScore:rankCandsByScore,rankCandidates:rankCandidates,smartPick:smartPick,adoptCandidates:adoptCandidates,adoptableCands:adoptableCands,manualLegMin:manualLegMin,buildExportPayload:buildExportPayload,applyImportedData:applyImportedData};
 }
 
 if(typeof document!=='undefined'&&document.getElementById){init();}
