@@ -1,0 +1,4 @@
+test/repro-*
+test/live-api-test.js
+test/batch-check.js
+test/*.out
